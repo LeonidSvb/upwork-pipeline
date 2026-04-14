@@ -1,0 +1,62 @@
+[
+  {
+    "name": "lead-gen-outreach",
+    "description": "Lead generation, cold outreach, email sequences, Apollo/Instantly/Smartlead",
+    "input": {
+      "search.any": "lead generation cold outreach email outreach lead sourcing Instantly Smartlead Apollo Hunter Clay",
+      "search.none": "tutoring teaching course certification",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "crm-airtable-workflows",
+    "description": "CRM automations, Airtable systems, sales ops, HubSpot/Pipedrive",
+    "input": {
+      "search.any": "CRM automation Airtable HubSpot Pipedrive Salesforce sales automation sales operations workflow automation",
+      "search.none": "tutoring teaching course certification",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "scraping-data-enrichment",
+    "description": "Web scraping, data extraction, lead enrichment, ETL pipelines",
+    "input": {
+      "search.any": "web scraping data extraction lead enrichment Apify Playwright Puppeteer BeautifulSoup Scrapy data pipeline ETL",
+      "search.none": "tutoring teaching course certification",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "automation-n8n-make",
+    "description": "n8n, Make.com, Zapier, workflow automations",
+    "input": {
+      "search.any": "n8n Make.com Zapier workflow automation no-code low-code API integration automate",
+      "search.none": "tutoring teaching course certification",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "python-scripts-api",
+    "description": "Python scripts, API integration, custom automation tools",
+    "input": {
+      "search.any": "Python script API integration automation bot data processing custom script FastAPI",
+      "search.none": "tutoring teaching course Django full-stack certification",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  }
+]

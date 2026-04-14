@@ -1,0 +1,387 @@
+{
+  "_schema_version": "0.8.1",
+  "_source": "reverse-engineered via API testing + apify.com/jupri/upwork/input-schema",
+  "_tested_date": "2026-04-14",
+
+  "SEARCH": {
+    "_description": "Core search parameters",
+
+    "search": {
+      "type": "string",
+      "description": "Search keyword query",
+      "example": "python developer",
+      "status": "CONFIRMED"
+    },
+
+    "query": {
+      "type": "array<string|url|jobId>",
+      "description": "Search by keyword, URL, or Upwork job ID. Multiple items = OR logic between them combined with search.any. Actor logs: 'processing (N) queries...'",
+      "example": ["n8n", "automation"],
+      "status": "CONFIRMED - combines with search.any as AND logic"
+    },
+
+    "search.any": {
+      "type": "string",
+      "description": "OR logic search terms (space-separated). Becomes: '(word1 OR word2 OR ...)' in the actual Upwork query. Combined with search.none via AND NOT.",
+      "example": "lead generation cold outreach Instantly Smartlead Apollo",
+      "status": "CONFIRMED - actor shows actual query in log"
+    },
+
+    "search.exact": {
+      "type": "string",
+      "description": "Exact phrase match search",
+      "example": "lead generation automation",
+      "status": "DOCUMENTED (seen in reference run, not individually tested)"
+    },
+
+    "search.none": {
+      "type": "string",
+      "description": "Exclusion terms (space-separated). Becomes: 'AND NOT (word1 OR word2 OR ...)' in actual query.",
+      "example": "tutoring teaching course",
+      "status": "CONFIRMED - works in combination with search.any"
+    },
+
+    "search.title": {
+      "type": "string",
+      "description": "Search only in job title (not description)",
+      "status": "DOCUMENTED (seen in reference run)"
+    },
+
+    "limit": {
+      "type": "integer",
+      "description": "Max number of results to return",
+      "default": null,
+      "example": 10,
+      "status": "CONFIRMED"
+    },
+
+    "sort": {
+      "type": "string",
+      "description": "Sort order for results",
+      "allowed_values": ["relevance", "newest", "spend", "rating"],
+      "default": "relevance",
+      "status": "CONFIRMED - validation error reveals exact allowed values"
+    },
+
+    "operation": {
+      "type": "string",
+      "description": "Operation mode",
+      "allowed_values": ["job-search", "job-counts", "talents"],
+      "default": "job-search",
+      "status": "CONFIRMED - logs show it's accepted"
+    }
+  },
+
+  "FILTERS": {
+    "_description": "Job filtering options",
+
+    "tier": {
+      "type": "array<string>",
+      "description": "Contractor experience level. 1=Entry, 2=Intermediate, 3=Expert",
+      "allowed_values": ["1", "2", "3"],
+      "example": ["3"],
+      "status": "CONFIRMED - validation error reveals allowed values"
+    },
+
+    "hourly_min": {
+      "type": "integer",
+      "description": "Minimum hourly rate (USD)",
+      "example": 30,
+      "status": "CONFIRMED - no unrecognized warning in logs"
+    },
+
+    "hourly_max": {
+      "type": "integer",
+      "description": "Maximum hourly rate (USD)",
+      "example": 200,
+      "status": "CONFIRMED - no unrecognized warning in logs"
+    },
+
+    "hourly": {
+      "type": "boolean",
+      "description": "Filter to hourly rate jobs only",
+      "example": true,
+      "status": "DOCUMENTED"
+    },
+
+    "fixed": {
+      "type": "boolean",
+      "description": "Filter to fixed-price jobs only",
+      "example": true,
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "price_min": {
+      "type": "integer",
+      "description": "Minimum fixed price budget (USD)",
+      "example": 200,
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "price_max": {
+      "type": "integer",
+      "description": "Maximum fixed price budget (USD)",
+      "example": 5000,
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "price": {
+      "type": "array<string>",
+      "description": "Fixed price range presets",
+      "status": "DOCUMENTED"
+    },
+
+    "age": {
+      "type": "integer",
+      "description": "Max age of posting (number of age_unit)",
+      "example": 7,
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "age_unit": {
+      "type": "string",
+      "description": "Unit for the age filter",
+      "allowed_values": ["minute", "hour", "day", "week"],
+      "example": "day",
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "payment_verified": {
+      "type": "boolean",
+      "description": "Show only clients with verified payment method",
+      "example": true,
+      "status": "CONFIRMED - accepted without error"
+    },
+
+    "contract_to_hire": {
+      "type": "boolean",
+      "description": "Filter for contract-to-hire positions",
+      "example": false,
+      "status": "CONFIRMED - no unrecognized warning (run7)"
+    },
+
+    "category": {
+      "type": "array<string>",
+      "description": "Job category slugs (e.g. web-development)",
+      "example": ["web-development", "data-science-analytics"],
+      "status": "DOCUMENTED"
+    },
+
+    "skills": {
+      "type": "array",
+      "description": "Filter by skill ID or name",
+      "example": ["Python", "996364628025274386"],
+      "status": "DOCUMENTED"
+    },
+
+    "skill_names": {
+      "type": "array<string>",
+      "description": "Filter by skill name",
+      "example": ["Python", "FastAPI"],
+      "status": "DOCUMENTED"
+    },
+
+    "client_location": {
+      "type": "array<string>",
+      "description": "Filter by client country",
+      "example": ["United States", "United Kingdom"],
+      "status": "DOCUMENTED"
+    },
+
+    "timezone": {
+      "type": "array<string>",
+      "description": "Filter by client timezone",
+      "status": "DOCUMENTED"
+    },
+
+    "duration": {
+      "type": "array<string>",
+      "description": "Project duration filter",
+      "example": ["month", "semester", "ongoing"],
+      "status": "DOCUMENTED"
+    },
+
+    "workload": {
+      "type": "array<string>",
+      "description": "Weekly hours workload",
+      "example": ["as_needed", "part_time", "full_time"],
+      "status": "DOCUMENTED"
+    },
+
+    "deliverable": {
+      "type": "array<string>",
+      "description": "Deliverable type filter",
+      "status": "DOCUMENTED"
+    },
+
+    "previous_clients": {
+      "type": "boolean",
+      "description": "Show jobs from clients you've worked with before (requires auth)",
+      "status": "DOCUMENTED"
+    },
+
+    "proposal_min": {
+      "type": "integer",
+      "description": "Minimum number of proposals already submitted",
+      "status": "DOCUMENTED"
+    },
+
+    "proposal_max": {
+      "type": "integer",
+      "description": "Maximum number of proposals already submitted",
+      "status": "DOCUMENTED"
+    }
+  },
+
+  "ADDITIONAL_DATA": {
+    "_description": "Extra data to include in output",
+
+    "includes": {
+      "type": "object OR dot-notation",
+      "description": "Additional data to fetch per job. Two formats both work.",
+      "formats": {
+        "nested_object": {"history": true, "attachments": true},
+        "dot_notation": "includes.history=true + includes.attachments=true (used by Apify console)"
+      },
+      "adds_output_fields": ["workHistory", "attachments", "workInProgress"],
+      "status": "CONFIRMED - both formats work, adds 3 extra fields to output"
+    },
+
+    "no_hires": {
+      "type": "boolean",
+      "description": "Filter to jobs where client has 0 hires (new clients only)",
+      "example": false,
+      "status": "DOCUMENTED (seen in reference run)"
+    }
+  },
+
+  "AUTH": {
+    "_description": "Authentication (needed for private job listings, previous_clients filter)",
+
+    "master_access_token": {
+      "type": "string",
+      "description": "Upwork session cookie / OAuth token for authenticated access",
+      "security_note": "Treat as secret - gives full account access",
+      "status": "DOCUMENTED"
+    }
+  },
+
+  "NOTIFICATIONS": {
+    "_description": "Built-in alert system (Under Maintenance per UI)",
+
+    "bot_type": {
+      "type": "string",
+      "description": "Notification platform",
+      "allowed_values": ["discord", "telegram"],
+      "status": "DOCUMENTED"
+    },
+
+    "bot_token": {
+      "type": "string",
+      "description": "Bot authentication token (Telegram: bot token, Discord: webhook)",
+      "status": "DOCUMENTED"
+    },
+
+    "bot_channel": {
+      "type": "string",
+      "description": "Channel/chat ID for notifications",
+      "status": "DOCUMENTED"
+    }
+  },
+
+  "DEVELOPER": {
+    "_description": "Advanced developer options",
+
+    "dev_proxy_config": {
+      "type": "object",
+      "description": "Custom HTTP/HTTPS/SOCKS5 proxy configuration",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_custom_headers": {
+      "type": "array",
+      "description": "Additional HTTP headers to include",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_custom_cookies": {
+      "type": "array",
+      "description": "Additional HTTP cookies to include",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_transform_fields": {
+      "type": "array",
+      "description": "Select and/or transform output fields",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_dataset_name": {
+      "type": "string",
+      "description": "Custom dataset name (supports masks)",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_dataset_clear": {
+      "type": "boolean",
+      "description": "Clear dataset before inserting new results",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_no_strip": {
+      "type": "boolean",
+      "description": "Preserve null/empty values in output (default: strip them)",
+      "status": "DOCUMENTED"
+    },
+
+    "dev_fileupload": {
+      "type": "string",
+      "description": "URL for file upload",
+      "status": "DOCUMENTED"
+    }
+  },
+
+  "LIMITS": {
+    "_description": "Known limitations discovered through testing",
+
+    "max_results_trial": 100,
+    "max_results_trial_note": "Free trial hard-capped at 100 results per run. Log message: 'Free trial is limited to the first 100 results. Subscribe for more.'",
+    "max_results_paid": "Unlimited (subscription $30/month)",
+    "rate_limiting": "No rate limiting observed in tests. Actor uses residential proxies (included).",
+
+    "timing": {
+      "10_items": "~16 seconds",
+      "100_items": "~28-33 seconds",
+      "500_items": "~33s but capped at 100 on trial",
+      "ms_per_item": "~280ms",
+      "estimated_1000_items_paid": "~280 seconds (~4.7 min)",
+      "timeout_default": "600 seconds"
+    },
+
+    "compute_cost": {
+      "per_10_items": "~0.00056 CU",
+      "per_100_items": "~0.006 CU",
+      "usd_per_100_items_at_1_per_CU": "$0.006",
+      "monthly_estimate_4x_daily_100items": "$0.72/month in compute"
+    },
+
+    "field_validation": {
+      "invalid_sort": "Returns 400 before run starts",
+      "invalid_tier": "Returns 400 before run starts",
+      "unrecognized_filters": "Logs warning but run continues (graceful degradation)",
+      "payment_verified_without_auth": "Run fails with 'Additional parameter required => MASTER_ACCESS_TOKEN'"
+    },
+
+    "sort_valid_values": ["relevance", "newest", "spend", "rating"],
+    "tier_valid_values": ["1", "2", "3"],
+    "age_unit_valid_values": ["minute", "hour", "day", "week"],
+    "operation_valid_values": ["job-search", "job-counts", "talents"],
+
+    "includes_adds_fields": ["workHistory", "attachments", "workInProgress"],
+    "concurrent_runs": "Multiple runs can run simultaneously",
+
+    "auth_required_for": ["payment_verified", "previous_clients", "private_job_listings"],
+
+    "proxy": "RESIDENTIAL proxy required (provided by actor - included in $30/month subscription)"
+  }
+}
