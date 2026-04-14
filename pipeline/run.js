@@ -23,17 +23,14 @@ async function fullPipeline() {
   const totalNew = scrapeResults.reduce((sum, r) => sum + (r.new || 0), 0);
   console.log(`[pipeline] New jobs this cycle: ${totalNew}`);
 
-  if (totalNew === 0) {
-    console.log('[pipeline] Nothing new, skipping');
-    return;
+  // 2. LLM enrichment для новых вакансий
+  if (totalNew > 0) {
+    await enrichPending(Math.min(totalNew + 10, 100));
   }
 
-  // 2. LLM enrichment
-  await enrichPending(Math.min(totalNew + 10, 100));
-
-  // 3. Получаем подходящие вакансии (ещё не отправленные)
+  // 3. Notify - всегда проверяем не отправленные релевантные вакансии
   const jobs = await getTopJobs(20, NOTIFY_FILTERS);
-  console.log(`[pipeline] ${jobs.length} jobs match filters (score>=${NOTIFY_FILTERS.minScore}, proposals<=${NOTIFY_FILTERS.maxProposals}, budget OK)`);
+  console.log(`[pipeline] ${jobs.length} unnotified jobs match filters`);
 
   if (jobs.length > 0) {
     await notifyNewJobs(jobs);
