@@ -2,13 +2,12 @@
   "name": "upwork-pipeline",
   "version": "1.0.0",
   "description": "Upwork job scraping pipeline with LLM enrichment and notifications",
-  "main": "index.js",
+  "main": "pipeline/run.js",
   "type": "module",
   "scripts": {
+    "start": "node pipeline/run.js",
     "scrape": "node pipeline/scrape.js",
-    "filter": "node pipeline/filter.js",
     "enrich": "node pipeline/enrich.js",
-    "pipeline": "node pipeline/run.js",
     "db:migrate": "node db/migrate.js",
     "dev": "node --watch pipeline/run.js"
   },
