@@ -4,6 +4,9 @@ import { runScrapeAll } from './scrape.js';
 import { enrichPending } from './enrich.js';
 import { getTopJobs, markNotified } from '../db/client.js';
 import { notifyNewJobs } from '../notifications/telegram.js';
+import { startServer } from '../server.js';
+
+startServer();
 
 // Фильтры для уведомлений
 const NOTIFY_FILTERS = {

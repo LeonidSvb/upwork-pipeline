@@ -12,11 +12,12 @@
     "dev": "node --watch pipeline/run.js"
   },
   "dependencies": {
-    "apify-client": "^2.9.3",
     "@anthropic-ai/sdk": "^0.36.3",
-    "pg": "^8.13.1",
+    "apify-client": "^2.9.3",
     "dotenv": "^16.4.7",
-    "node-cron": "^3.0.3"
+    "express": "^5.2.1",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

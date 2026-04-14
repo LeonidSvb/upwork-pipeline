@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upwork Pipeline</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+
+  .header { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+  .header-stats { display: flex; gap: 16px; margin-left: auto; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 700; color: #6ee7b7; }
+  .stat-label { font-size: 11px; color: #666; }
+
+  .filters { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 12px 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .filters select, .filters input { background: #2a2a2a; border: 1px solid #3a3a3a; color: #e0e0e0; padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .filters select:focus, .filters input:focus { outline: none; border-color: #6ee7b7; }
+  .filter-label { font-size: 12px; color: #666; white-space: nowrap; }
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-primary { background: #6ee7b7; color: #000; }
+  .btn-primary:hover { background: #4ade80; }
+  .btn-ghost { background: #2a2a2a; color: #e0e0e0; border: 1px solid #3a3a3a; }
+  .btn-ghost:hover { background: #3a3a3a; }
+
+  .count { font-size: 13px; color: #666; margin-left: auto; }
+
+  .jobs { padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+
+  .job-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; transition: border-color 0.15s; cursor: default; }
+  .job-card:hover { border-color: #3a3a3a; }
+  .job-card.high { border-left: 3px solid #6ee7b7; }
+  .job-card.medium { border-left: 3px solid #fbbf24; }
+  .job-card.low { border-left: 3px solid #3a3a3a; }
+  .job-card.notified { opacity: 0.55; }
+
+  .job-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .job-title { font-size: 15px; font-weight: 600; color: #fff; flex: 1; line-height: 1.4; }
+  .job-title a { color: inherit; text-decoration: none; }
+  .job-title a:hover { color: #6ee7b7; }
+
+  .score-badge { background: #2a2a2a; border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+  .score-high { background: #064e3b; color: #6ee7b7; }
+  .score-medium { background: #451a03; color: #fbbf24; }
+  .score-low { color: #666; }
+
+  .job-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .badge { background: #2a2a2a; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #aaa; }
+  .badge-budget { color: #6ee7b7; background: #064e3b22; }
+  .badge-proposals { color: #fbbf24; }
+  .badge-country { color: #93c5fd; }
+  .badge-notified { color: #666; }
+
+  .job-reasoning { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 10px; font-style: italic; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { background: #1e3a2e; color: #6ee7b7; border-radius: 4px; padding: 2px 7px; font-size: 11px; }
+
+  .empty { text-align: center; padding: 60px; color: #444; font-size: 15px; }
+  .loading { text-align: center; padding: 40px; color: #666; }
+
+  .pagination { display: flex; justify-content: center; gap: 8px; padding: 20px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Upwork Pipeline</h1>
+  <div class="header-stats" id="stats">
+    <div class="stat"><div class="stat-num" id="s-total">—</div><div class="stat-label">всего</div></div>
+    <div class="stat"><div class="stat-num" id="s-enriched">—</div><div class="stat-label">оценено</div></div>
+    <div class="stat"><div class="stat-num" id="s-highscore">—</div><div class="stat-label">score ≥7</div></div>
+    <div class="stat"><div class="stat-num" id="s-notified">—</div><div class="stat-label">отправлено</div></div>
+    <div class="stat"><div class="stat-num" id="s-lastrun" style="font-size:12px;color:#aaa">—</div><div class="stat-label">последний скрейп</div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <span class="filter-label">Score ≥</span>
+  <select id="f-score" onchange="load()">
+    <option value="0">Все</option>
+    <option value="5">5+</option>
+    <option value="6" selected>6+</option>
+    <option value="7">7+</option>
+    <option value="8">8+</option>
+  </select>
+
+  <span class="filter-label">Тип</span>
+  <select id="f-type" onchange="load()">
+    <option value="">Все</option>
+    <option value="hourly">Hourly</option>
+    <option value="fixed">Fixed</option>
+  </select>
+
+  <span class="filter-label">Категория</span>
+  <select id="f-category" onchange="load()">
+    <option value="">Все</option>
+    <option value="lead_gen">Lead Gen</option>
+    <option value="outreach">Outreach</option>
+    <option value="crm">CRM</option>
+    <option value="airtable">Airtable</option>
+    <option value="scraping">Scraping</option>
+    <option value="automation">Automation</option>
+    <option value="python">Python</option>
+    <option value="other">Other</option>
+  </select>
+
+  <span class="filter-label">Сортировка</span>
+  <select id="f-sort" onchange="load()">
+    <option value="score">По score</option>
+    <option value="newest">По свежести</option>
+    <option value="proposals">По конкурентам</option>
+  </select>
+
+  <span class="filter-label">Уведомлено</span>
+  <select id="f-notified" onchange="load()">
+    <option value="">Все</option>
+    <option value="no">Не отправлено</option>
+    <option value="yes">Отправлено</option>
+  </select>
+
+  <button class="btn btn-ghost" onclick="reset()">Сбросить</button>
+  <span class="count" id="count"></span>
+</div>
+
+<div class="jobs" id="jobs">
+  <div class="loading">Загрузка...</div>
+</div>
+
+<div class="pagination" id="pagination"></div>
+
+<script>
+let currentOffset = 0;
+const LIMIT = 30;
+
+function getFilters() {
+  return {
+    minScore: document.getElementById('f-score').value,
+    type: document.getElementById('f-type').value,
+    category: document.getElementById('f-category').value,
+    sort: document.getElementById('f-sort').value,
+    notified: document.getElementById('f-notified').value,
+  };
+}
+
+function reset() {
+  document.getElementById('f-score').value = '6';
+  document.getElementById('f-type').value = '';
+  document.getElementById('f-category').value = '';
+  document.getElementById('f-sort').value = 'score';
+  document.getElementById('f-notified').value = '';
+  currentOffset = 0;
+  load();
+}
+
+function scoreClass(s) {
+  if (s >= 7) return 'high score-high';
+  if (s >= 5) return 'medium score-medium';
+  return 'low score-low';
+}
+
+function formatBudget(job) {
+  if (job.type === 'HOURLY') {
+    const min = job.hourly_min ? '$' + job.hourly_min : '?';
+    const max = job.hourly_max ? '$' + job.hourly_max : '?';
+    return min + '-' + max + '/hr';
+  }
+  if (job.fixed_budget) return '$' + Number(job.fixed_budget).toLocaleString() + ' fixed';
+  return 'Budget TBD';
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 48) return Math.floor(h / 24) + 'd ago';
+  if (h > 0) return h + 'h ago';
+  return m + 'm ago';
+}
+
+function renderJob(j) {
+  const sc = j.overall_score || 0;
+  const badgeClass = sc >= 7 ? 'score-high' : sc >= 5 ? 'score-medium' : 'score-low';
+  const cardClass = sc >= 7 ? 'high' : sc >= 5 ? 'medium' : 'low';
+  const tags = Array.isArray(j.tags) ? j.tags : (j.tags ? JSON.parse(j.tags) : []);
+
+  return `
+  <div class="job-card ${cardClass} ${j.notified ? 'notified' : ''}">
+    <div class="job-top">
+      <div class="job-title"><a href="${j.url}" target="_blank">${j.title || 'Без названия'}</a></div>
+      <div class="score-badge ${badgeClass}">${sc}/10</div>
+    </div>
+    <div class="job-meta">
+      <span class="badge badge-budget">${formatBudget(j)}</span>
+      ${j.client_country ? `<span class="badge badge-country">${j.client_country}</span>` : ''}
+      ${j.total_applicants != null ? `<span class="badge badge-proposals">${j.total_applicants} proposals</span>` : ''}
+      ${j.client_score ? `<span class="badge">client ${j.client_score}</span>` : ''}
+      ${j.client_total_spend ? `<span class="badge">spent $${Math.round(j.client_total_spend).toLocaleString()}</span>` : ''}
+      ${j.level ? `<span class="badge">${j.level}</span>` : ''}
+      ${j.primary_category ? `<span class="badge">${j.primary_category}</span>` : ''}
+      <span class="badge">${timeAgo(j.ts_publish)}</span>
+      ${j.notified ? '<span class="badge badge-notified">отправлено в TG</span>' : ''}
+    </div>
+    ${j.llm_reasoning ? `<div class="job-reasoning">${j.llm_reasoning}</div>` : ''}
+    ${tags.length ? `<div class="tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+async function load(offset = 0) {
+  currentOffset = offset;
+  const f = getFilters();
+  const params = new URLSearchParams({ ...f, limit: LIMIT, offset });
+  document.getElementById('jobs').innerHTML = '<div class="loading">Загрузка...</div>';
+
+  const res = await fetch('/api/jobs?' + params);
+  const { jobs, total } = await res.json();
+
+  document.getElementById('count').textContent = `${total} вакансий`;
+
+  if (!jobs.length) {
+    document.getElementById('jobs').innerHTML = '<div class="empty">Вакансий не найдено. Попробуй изменить фильтры.</div>';
+  } else {
+    document.getElementById('jobs').innerHTML = jobs.map(renderJob).join('');
+  }
+
+  renderPagination(total);
+}
+
+function renderPagination(total) {
+  const pages = Math.ceil(total / LIMIT);
+  const current = Math.floor(currentOffset / LIMIT);
+  if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+
+  let html = '';
+  if (current > 0) html += `<button class="btn btn-ghost" onclick="load(${(current-1)*LIMIT})">← Назад</button>`;
+  html += `<span style="color:#666;font-size:13px;padding:6px">${current+1} / ${pages}</span>`;
+  if (current < pages - 1) html += `<button class="btn btn-ghost" onclick="load(${(current+1)*LIMIT})">Вперёд →</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+async function loadStats() {
+  const res = await fetch('/api/stats');
+  const s = await res.json();
+  document.getElementById('s-total').textContent = s.total_jobs;
+  document.getElementById('s-enriched').textContent = s.enriched;
+  document.getElementById('s-highscore').textContent = s.high_score;
+  document.getElementById('s-notified').textContent = s.notified;
+  if (s.last_run) {
+    const d = new Date(s.last_run);
+    document.getElementById('s-lastrun').textContent = d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+  }
+}
+
+loadStats();
+load();
+setInterval(() => { loadStats(); load(currentOffset); }, 60000);
+</script>
+</body>
+</html>
