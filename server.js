@@ -16,6 +16,7 @@ app.get('/api/jobs', async (req, res) => {
   try {
     const {
       minScore = 0,
+      maxProposals = '',
       category = '',
       type = '',
       notified = '',
@@ -31,6 +32,10 @@ app.get('/api/jobs', async (req, res) => {
     if (minScore > 0) {
       conditions.push(`e.overall_score >= $${p++}`);
       params.push(Number(minScore));
+    }
+    if (maxProposals !== '') {
+      conditions.push(`(j.total_applicants IS NULL OR j.total_applicants <= $${p++})`);
+      params.push(Number(maxProposals));
     }
     if (category) {
       conditions.push(`e.primary_category = $${p++}`);

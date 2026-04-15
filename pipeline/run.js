@@ -5,17 +5,9 @@ import { enrichPending } from './enrich.js';
 import { getTopJobs, markNotified } from '../db/client.js';
 import { notifyNewJobs } from '../notifications/telegram.js';
 import { startServer } from '../server.js';
+import { CONFIG } from '../config.js';
 
 startServer();
-
-// Фильтры для уведомлений
-const NOTIFY_FILTERS = {
-  minScore: 6,
-  maxProposals: 15,   // <= 15 конкурентов или неизвестно
-  hourlyMin: 15,      // от $15/hr
-  hourlyMax: 45,      // до $45/hr
-  fixedMax: 500,      // fixed до $500
-};
 
 async function fullPipeline() {
   const now = new Date().toISOString();
@@ -32,7 +24,7 @@ async function fullPipeline() {
   }
 
   // 3. Notify - всегда проверяем не отправленные релевантные вакансии
-  const jobs = await getTopJobs(20, NOTIFY_FILTERS);
+  const jobs = await getTopJobs(20, CONFIG.notify);
   console.log(`[pipeline] ${jobs.length} unnotified jobs match filters`);
 
   if (jobs.length > 0) {

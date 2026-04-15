@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { scrapeAndWait } from '../scraper/apify.js';
 import { upsertJobs, logScrapeRun } from '../db/client.js';
+import { CONFIG } from '../config.js';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +18,12 @@ export async function runScrapeAll() {
 
     try {
       const items = await scrapeAndWait(input);
-      const { newCount } = await upsertJobs(items);
+      const { newCount, skippedCount } = await upsertJobs(items, {
+        excludeCountries: CONFIG.excludeCountries,
+        fixedMin: CONFIG.preFilter.fixedMin,
+        hourlyMin: CONFIG.preFilter.hourlyMin,
+        proposalsMax: CONFIG.preFilter.proposalsMax,
+      });
 
       runResult = {
         search_query: name,
@@ -29,7 +35,7 @@ export async function runScrapeAll() {
         finished_at: new Date(),
       };
       results.push({ name, count: items.length, new: newCount });
-      console.log(`[pipeline] ${name}: ${items.length} fetched, ${newCount} new`);
+      console.log(`[pipeline] ${name}: ${items.length} fetched, ${newCount} new, ${skippedCount} skipped`);
     } catch (err) {
       runResult = {
         search_query: name,

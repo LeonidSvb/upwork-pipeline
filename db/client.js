@@ -34,11 +34,43 @@ function mapJobToDb(item) {
   };
 }
 
-export async function upsertJobs(items) {
+export async function upsertJobs(items, preFilter = {}) {
   let newCount = 0;
+  let skippedCount = 0;
+  const {
+    excludeCountries = [],
+    fixedMin = 0,
+    hourlyMin = 0,
+    proposalsMax = Infinity,
+  } = preFilter;
+
+  const excludeLower = excludeCountries.map(c => c.toLowerCase());
 
   for (const item of items) {
     const j = mapJobToDb(item);
+
+    // Pre-filter: country exclusion
+    if (j.client_country && excludeLower.includes(j.client_country.toLowerCase())) {
+      skippedCount++;
+      continue;
+    }
+
+    // Pre-filter: budget minimums
+    if (j.type === 'FIXED' && j.fixed_budget !== null && j.fixed_budget < fixedMin) {
+      skippedCount++;
+      continue;
+    }
+    if (j.type === 'HOURLY' && j.hourly_max !== null && j.hourly_max < hourlyMin) {
+      skippedCount++;
+      continue;
+    }
+
+    // Pre-filter: too many proposals
+    if (j.total_applicants !== null && j.total_applicants > proposalsMax) {
+      skippedCount++;
+      continue;
+    }
+
     const result = await pool.query(
       `INSERT INTO jobs (
         id, title, description, url, type, ts_publish, ts_create,
@@ -51,8 +83,12 @@ export async function upsertJobs(items) {
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
         $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
       )
-      ON CONFLICT (id) DO NOTHING
-      RETURNING id`,
+      ON CONFLICT (id) DO UPDATE SET
+        total_applicants = EXCLUDED.total_applicants,
+        invited_to_interview = EXCLUDED.invited_to_interview,
+        raw = EXCLUDED.raw,
+        updated_at = NOW()
+      RETURNING (xmax = 0) AS inserted`,
       [
         j.id, j.title, j.description, j.url, j.type, j.ts_publish, j.ts_create,
         j.hourly_min, j.hourly_max, j.fixed_budget,
@@ -62,10 +98,11 @@ export async function upsertJobs(items) {
         j.total_applicants, j.invited_to_interview, j.raw,
       ]
     );
-    if (result.rows.length > 0) newCount++;
+    if (result.rows[0]?.inserted) newCount++;
   }
 
-  return { newCount };
+  if (skippedCount > 0) console.log(`[upsert] Skipped by pre-filter: ${skippedCount}`);
+  return { newCount, skippedCount };
 }
 
 export async function getJobsToEnrich(limit = 20) {

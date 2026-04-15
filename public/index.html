@@ -114,6 +114,16 @@
     <option value="proposals">По конкурентам</option>
   </select>
 
+  <span class="filter-label">Proposals ≤</span>
+  <select id="f-proposals" onchange="load()">
+    <option value="">Все</option>
+    <option value="5">5</option>
+    <option value="10">10</option>
+    <option value="15" selected>15</option>
+    <option value="20">20</option>
+    <option value="30">30</option>
+  </select>
+
   <span class="filter-label">Уведомлено</span>
   <select id="f-notified" onchange="load()">
     <option value="">Все</option>
@@ -138,6 +148,7 @@ const LIMIT = 30;
 function getFilters() {
   return {
     minScore: document.getElementById('f-score').value,
+    maxProposals: document.getElementById('f-proposals').value,
     type: document.getElementById('f-type').value,
     category: document.getElementById('f-category').value,
     sort: document.getElementById('f-sort').value,
@@ -147,6 +158,7 @@ function getFilters() {
 
 function reset() {
   document.getElementById('f-score').value = '6';
+  document.getElementById('f-proposals').value = '15';
   document.getElementById('f-type').value = '';
   document.getElementById('f-category').value = '';
   document.getElementById('f-sort').value = 'score';
@@ -201,7 +213,8 @@ function renderJob(j) {
       ${j.client_total_spend ? `<span class="badge">spent $${Math.round(j.client_total_spend).toLocaleString()}</span>` : ''}
       ${j.level ? `<span class="badge">${j.level}</span>` : ''}
       ${j.primary_category ? `<span class="badge">${j.primary_category}</span>` : ''}
-      <span class="badge">${timeAgo(j.ts_publish)}</span>
+      <span class="badge" title="опубликовано">posted ${timeAgo(j.ts_publish)}</span>
+      <span class="badge" title="добавлено в базу" style="color:#555">saved ${timeAgo(j.scraped_at)}</span>
       ${j.notified ? '<span class="badge badge-notified">отправлено в TG</span>' : ''}
     </div>
     ${j.llm_reasoning ? `<div class="job-reasoning">${j.llm_reasoning}</div>` : ''}

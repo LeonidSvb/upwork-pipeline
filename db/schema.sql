@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   ts_publish            TIMESTAMPTZ,
   ts_create             TIMESTAMPTZ,
   scraped_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ,
 
   -- Budget
   hourly_min            NUMERIC,

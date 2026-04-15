@@ -4,7 +4,7 @@
     "description": "Lead generation, cold outreach, email sequences, Apollo/Instantly/Smartlead",
     "input": {
       "search.any": "lead generation cold outreach email outreach lead sourcing Instantly Smartlead Apollo Hunter Clay",
-      "search.none": "tutoring teaching course certification",
+      "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
       "age": 30,
@@ -13,10 +13,10 @@
   },
   {
     "name": "crm-airtable-workflows",
-    "description": "CRM automations, Airtable systems, sales ops, HubSpot/Pipedrive",
+    "description": "CRM automations, Airtable systems, sales ops, HubSpot/Pipedrive/Notion",
     "input": {
-      "search.any": "CRM automation Airtable HubSpot Pipedrive Salesforce sales automation sales operations workflow automation",
-      "search.none": "tutoring teaching course certification",
+      "search.any": "CRM automation Airtable HubSpot Pipedrive Salesforce sales automation sales operations workflow automation Notion database",
+      "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
       "age": 30,
@@ -27,8 +27,8 @@
     "name": "scraping-data-enrichment",
     "description": "Web scraping, data extraction, lead enrichment, ETL pipelines",
     "input": {
-      "search.any": "web scraping data extraction lead enrichment Apify Playwright Puppeteer BeautifulSoup Scrapy data pipeline ETL",
-      "search.none": "tutoring teaching course certification",
+      "search.any": "web scraping data extraction lead enrichment Apify Playwright Puppeteer BeautifulSoup Scrapy data pipeline ETL parse data extract from website",
+      "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
       "age": 30,
@@ -37,10 +37,10 @@
   },
   {
     "name": "automation-n8n-make",
-    "description": "n8n, Make.com, Zapier, workflow automations",
+    "description": "n8n, Make.com, Zapier, workflow automations, API/webhook integrations",
     "input": {
-      "search.any": "n8n Make.com Zapier workflow automation no-code low-code API integration automate",
-      "search.none": "tutoring teaching course certification",
+      "search.any": "n8n Make.com Zapier workflow automation no-code low-code API integration automate webhook setup Slack notification trigger when",
+      "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
       "age": 30,
@@ -51,8 +51,32 @@
     "name": "python-scripts-api",
     "description": "Python scripts, API integration, custom automation tools",
     "input": {
-      "search.any": "Python script API integration automation bot data processing custom script FastAPI",
-      "search.none": "tutoring teaching course Django full-stack certification",
+      "search.any": "Python script API integration automation bot data processing custom script FastAPI scheduled report data pipeline",
+      "search.none": "tutoring teaching course Django full-stack certification SEO content writing machine learning deep learning",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "process-pain-vague",
+    "description": "Businesses describing pain without technical terms - automation opportunities",
+    "input": {
+      "search.any": "streamline workflow save time repetitive tasks manual process inefficient too much manual work connect tools sync data data integration move data between spreadsheet automation organize data messy data",
+      "search.none": "tutoring teaching course certification SEO content writing graphic design video editing",
+      "limit": 100,
+      "sort": "newest",
+      "age": 30,
+      "age_unit": "minute"
+    }
+  },
+  {
+    "name": "data-ops-spreadsheets",
+    "description": "Spreadsheet automation, data cleanup, reporting, dashboards",
+    "input": {
+      "search.any": "Google Sheets automation Excel automation spreadsheet automation data cleanup data organization reporting dashboard scheduled report weekly report data processing transfer data",
+      "search.none": "tutoring teaching course certification SEO content writing graphic design video editing",
       "limit": 100,
       "sort": "newest",
       "age": 30,
