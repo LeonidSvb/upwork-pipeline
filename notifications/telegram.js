@@ -61,7 +61,6 @@ function jobButtons(jobId) {
     inline_keyboard: [[
       { text: 'Подходит', callback_data: `fb:good:${jobId}` },
       { text: 'Не моё', callback_data: `fb:bad:${jobId}` },
-      { text: 'Пропустить', callback_data: `fb:skip:${jobId}` },
     ]]
   };
 }
