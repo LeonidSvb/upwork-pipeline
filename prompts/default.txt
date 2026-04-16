@@ -1,0 +1,20 @@
+Evaluate this Upwork job for a specialist in: lead generation systems, sales automation, CRM workflows (Airtable/HubSpot), web scraping (Python/Apify), n8n/Make/Zapier automations, outreach infrastructure (Instantly/Smartlead), Python scripts, API integrations.
+
+{{job_block}}
+
+Return ONLY valid JSON:
+{
+  "is_relevant": boolean,
+  "is_good_client": boolean,
+  "is_budget_ok": boolean,
+  "has_clear_requirements": boolean,
+  "is_long_term": boolean,
+  "relevance_score": 0-10,
+  "budget_score": 0-10,
+  "client_quality_score": 0-10,
+  "overall_score": 0-10,
+  "primary_category": "lead_gen|outreach|crm|airtable|scraping|automation|python|other",
+  "tags": ["tag1"],
+  "rejection_reasons": [],
+  "llm_reasoning": "2 sentence summary"
+}

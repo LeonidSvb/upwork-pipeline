@@ -1,49 +1,43 @@
 import 'dotenv/config';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { getJobsToEnrich, saveEnrichment } from '../db/client.js';
+import { CONFIG } from '../config.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-
-// Модель по умолчанию - дешевая и быстрая
 const MODEL = process.env.ENRICH_MODEL || 'google/gemini-2.5-flash-lite';
 
-const SYSTEM_PROMPT = `You are an expert Upwork job evaluator for a senior developer/automation specialist.
-Analyze job postings and return structured JSON assessments. Be concise and direct.`;
+function loadPromptFile(name) {
+  const path = resolve(__dirname, '../prompts', `${name}.txt`);
+  return readFileSync(path, 'utf8').trim();
+}
 
-function buildPrompt(job) {
+const SYSTEM_PROMPT = loadPromptFile('system');
+const USER_TEMPLATE = loadPromptFile(CONFIG.enrichPrompt || 'default');
+
+function buildJobBlock(job) {
   const budget = job.type === 'HOURLY'
     ? `$${job.hourly_min || '?'}-${job.hourly_max || '?'}/hr`
     : `$${job.fixed_budget || '?'} fixed`;
 
-  return `Evaluate this Upwork job for a specialist in: lead generation systems, sales automation, CRM workflows (Airtable/HubSpot), web scraping (Python/Apify), n8n/Make/Zapier automations, outreach infrastructure (Instantly/Smartlead), Python scripts, API integrations.
-
-JOB:
+  return `JOB:
 Title: ${job.title}
 Type: ${job.type} | Budget: ${budget}
 Level: ${job.level || 'N/A'}
-Client: ${job.client_country || 'Unknown'} | Score: ${job.client_score || 'N/A'} | Spent: $${Math.round(job.client_total_spend || 0).toLocaleString()}
+Client: ${job.client_country || 'Unknown'} | Score: ${job.client_score || 'none'} | Spent: $${Math.round(job.client_total_spend || 0).toLocaleString()} | Jobs posted: ${job.client_total_jobs || 0}
 Category: ${job.category || 'N/A'}
 Skills: ${Array.isArray(job.skills) ? job.skills.map(s => s.name || s).join(', ') : 'N/A'}
 
 Description (first 600 chars):
-${(job.description || '').substring(0, 600)}
+${(job.description || '').substring(0, 600)}`;
+}
 
-Return ONLY valid JSON (no markdown, no explanation):
-{
-  "is_relevant": boolean,
-  "is_good_client": boolean,
-  "is_budget_ok": boolean,
-  "has_clear_requirements": boolean,
-  "is_long_term": boolean,
-  "relevance_score": 0-10,
-  "budget_score": 0-10,
-  "client_quality_score": 0-10,
-  "overall_score": 0-10,
-  "primary_category": "lead_gen|outreach|crm|airtable|scraping|automation|python|other",
-  "tags": ["tag1"],
-  "rejection_reasons": [],
-  "llm_reasoning": "2 sentence summary"
-}`;
+function buildPrompt(job) {
+  return USER_TEMPLATE.replace('{{job_block}}', buildJobBlock(job));
 }
 
 async function callOpenRouter(prompt) {
@@ -61,7 +55,7 @@ async function callOpenRouter(prompt) {
         { role: 'user', content: prompt },
       ],
       temperature: 0.1,
-      max_tokens: 400,
+      max_tokens: 500,
     }),
   });
 
@@ -72,8 +66,6 @@ async function callOpenRouter(prompt) {
 
 export async function enrichJob(job) {
   const text = await callOpenRouter(buildPrompt(job));
-
-  // Убираем markdown если модель добавила
   const cleaned = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
   const parsed = JSON.parse(cleaned);
   return { ...parsed, model: MODEL };
@@ -81,7 +73,7 @@ export async function enrichJob(job) {
 
 export async function enrichPending(batchSize = 20) {
   const jobs = await getJobsToEnrich(batchSize);
-  console.log(`[enrich] Processing ${jobs.length} jobs with ${MODEL}`);
+  console.log(`[enrich] Processing ${jobs.length} jobs with ${MODEL} (prompt: ${CONFIG.enrichPrompt || 'default'})`);
 
   let done = 0;
   for (const job of jobs) {

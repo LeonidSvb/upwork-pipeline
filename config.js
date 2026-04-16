@@ -1,5 +1,9 @@
 // Central config — edit here to change scraping and filtering behavior
 export const CONFIG = {
+  // Prompt file to use for LLM enrichment (filename without .txt in prompts/ folder)
+  enrichPrompt: 'low-rating',
+
+
   // Countries to exclude (client location) — case-insensitive match
   excludeCountries: [
     'India',

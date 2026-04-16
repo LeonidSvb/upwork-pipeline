@@ -122,6 +122,7 @@ export async function getJobsToEnrich(limit = 20) {
 }
 
 export async function saveEnrichment(jobId, enrichment) {
+  const { model, ...rest } = enrichment;
   await pool.query(
     `INSERT INTO job_enrichments (
       job_id, model,
@@ -131,10 +132,12 @@ export async function saveEnrichment(jobId, enrichment) {
     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
     ON CONFLICT (job_id) DO UPDATE SET
       enriched_at = NOW(),
+      model = EXCLUDED.model,
       overall_score = EXCLUDED.overall_score,
-      is_relevant = EXCLUDED.is_relevant`,
+      is_relevant = EXCLUDED.is_relevant,
+      llm_raw = EXCLUDED.llm_raw`,
     [
-      jobId, enrichment.model,
+      jobId, model,
       enrichment.relevance_score, enrichment.budget_score,
       enrichment.client_quality_score, enrichment.overall_score,
       enrichment.is_relevant, enrichment.is_good_client,
@@ -144,7 +147,7 @@ export async function saveEnrichment(jobId, enrichment) {
       enrichment.tags,
       enrichment.rejection_reasons,
       enrichment.llm_reasoning,
-      JSON.stringify(enrichment.llm_raw),
+      JSON.stringify(rest),
     ]
   );
 }

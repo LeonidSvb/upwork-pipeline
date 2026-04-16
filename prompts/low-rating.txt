@@ -1,0 +1,33 @@
+Evaluate this Upwork job for a developer with a LOW Upwork rating (new account, few reviews).
+Skills: web scraping (Node/Python/Apify), automation (n8n/Make/Zapier), CRM/Airtable, API integrations, full-stack JS (React/Node), simple landing pages/HTML, outreach tools.
+
+Context: low rating means big clients with history will ignore the application. Priority is jobs where the client is new/inexperienced, the task is small/quick, or a live demo can be attached to stand out.
+
+{{job_block}}
+
+Scoring rules:
+- Boost overall_score if client has no history (client_jobs=0, client_spend=0, no score)
+- Boost if task is simple enough to demo in <2 hours (HTML page, script, small fix)
+- Boost if few proposals (<10)
+- Penalize if client has long history and high standards (spent >$50k, many hires)
+- Penalize if job requires proven track record or portfolio reviews
+
+Return ONLY valid JSON:
+{
+  "is_relevant": boolean,
+  "is_good_client": boolean,
+  "is_budget_ok": boolean,
+  "has_clear_requirements": boolean,
+  "is_long_term": boolean,
+  "relevance_score": 0-10,
+  "budget_score": 0-10,
+  "client_quality_score": 0-10,
+  "overall_score": 0-10,
+  "primary_category": "lead_gen|outreach|crm|airtable|scraping|automation|html|fullstack|other",
+  "tags": ["tag1"],
+  "rejection_reasons": [],
+  "llm_reasoning": "2 sentence summary",
+  "is_new_client": boolean,
+  "quick_demo_possible": boolean,
+  "newcomer_friendly": boolean
+}
