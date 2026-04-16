@@ -41,31 +41,19 @@ function formatJob(job) {
 
   const desc = (job.description || '').trim();
 
-  const lines = [
+  // Описание под спойлером — обрезаем если > 3500 чтобы влезло в лимит
+  const descText = desc.length > 3500 ? desc.substring(0, 3500) + '...' : desc;
+
+  return [
     `<b>${escapeHtml(job.title)}</b>`,
     `${budget} | Score: ${job.overall_score || '?'}/10 | ${job.total_applicants ?? '?'} proposals | ${job.level || ''}`,
     `Client: ${escapeHtml(clientParts.join(' · '))}`,
     flags.length ? `Flags: ${flags.join(' · ')}` : null,
     skills ? `Skills: ${escapeHtml(skills)}` : null,
-    job.llm_reasoning ? `\nAI: <i>${escapeHtml(job.llm_reasoning)}</i>` : null,
-    `\n${escapeHtml(desc)}`,
+    job.llm_reasoning ? `AI: <i>${escapeHtml(job.llm_reasoning)}</i>` : null,
+    `\n<tg-spoiler>${escapeHtml(descText)}</tg-spoiler>`,
     `\n<a href="${job.url}">Upwork</a>`,
-  ].filter(Boolean);
-
-  let text = lines.join('\n');
-
-  // Если длиннее лимита — обрезаем описание
-  if (text.length > TG_LIMIT) {
-    const overhead = text.length - desc.length;
-    const maxDesc = TG_LIMIT - overhead - 20;
-    const shortDesc = desc.substring(0, maxDesc) + '...';
-    const linesShort = lines.slice(0, -2);
-    linesShort.push(`\n${escapeHtml(shortDesc)}`);
-    linesShort.push(`\n<a href="${job.url}">Upwork</a>`);
-    text = linesShort.join('\n');
-  }
-
-  return text;
+  ].filter(Boolean).join('\n');
 }
 
 function jobButtons(jobId) {
