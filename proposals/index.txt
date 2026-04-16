@@ -1,0 +1,17 @@
+PROPOSALS INDEX
+===============
+
+FORMAT: DATE | CLIENT | JOB | OUTCOME | RATE BID
+
+---
+
+2026-04-16 | Dazlab | GTM Operator B2B SaaS | pending | $28/hr
+folder: 2026-04-16-dazlab-gtm-operator/
+
+---
+
+PATTERNS THAT WORKED:
+(fill in as data comes in)
+
+PATTERNS THAT DIDN'T:
+(fill in as data comes in)

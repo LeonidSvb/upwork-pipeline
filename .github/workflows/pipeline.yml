@@ -30,6 +30,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: 6978852648
+          TG_GROUP_ID: "-1003729714013"
+          TG_TOPIC_UPWORK: "4"
+          TG_TOPIC_SYSTEM: "2"
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
         run: node pipeline/run-once.js

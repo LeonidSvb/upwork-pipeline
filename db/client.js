@@ -209,7 +209,25 @@ export async function markNotified(jobIds, channel = 'telegram') {
   const values = jobIds.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(', ');
   const params = jobIds.flatMap(id => [id, channel]);
   await pool.query(
-    `INSERT INTO notifications (job_id, channel, status) VALUES ${values} ON CONFLICT DO NOTHING`,
+    `INSERT INTO notifications (job_id, channel) VALUES ${values} ON CONFLICT (job_id, channel) DO NOTHING`,
     params
   );
+}
+
+export async function saveFeedback(jobId, feedback, reason = null) {
+  await pool.query(
+    `INSERT INTO job_feedback (job_id, feedback, reason) VALUES ($1, $2, $3)`,
+    [jobId, feedback, reason]
+  );
+}
+
+export async function getJobById(id) {
+  const { rows } = await pool.query(
+    `SELECT j.*, e.overall_score, e.llm_reasoning, e.tags, e.primary_category
+     FROM jobs j
+     LEFT JOIN job_enrichments e ON j.id = e.job_id
+     WHERE j.id = $1`,
+    [id]
+  );
+  return rows[0] || null;
 }

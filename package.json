@@ -8,7 +8,9 @@
     "start": "node pipeline/run.js",
     "scrape": "node pipeline/scrape.js",
     "enrich": "node pipeline/enrich.js",
+    "bot": "node telegram/bot.js",
     "db:migrate": "node db/migrate.js",
+    "db:migrate2": "node db/migrations/run.js",
     "dev": "node --watch pipeline/run.js"
   },
   "dependencies": {
