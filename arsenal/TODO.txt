@@ -1,0 +1,16 @@
+ARSENAL — TODO
+
+[ ] Добавить ссылки на кейсы (landing pages / PDF) в cases.md
+[ ] Заполнить Make workflows в workflows-make.md (цель: 10-15 штук)
+[ ] Заполнить n8n workflows в workflows-n8n.md (цель: 10-15 штук)
+[ ] Добавить скрины/ссылки на Airtable базы которые строил
+[ ] Добавить свои Upwork отзывы когда появятся
+[ ] Добавить примеры реальных cover letters которые сработали
+
+PIPELINE — TODO
+
+[ ] Проанализировать базу джобов: топ категории, частые skills, средний бюджет
+[ ] Посмотреть паттерны в job_feedback (bad reasons) и обновить промпт
+[ ] Добавить поддержку топика Ideas в боте (ideas.js — уже начато)
+[ ] Проверить что GitHub Actions cron работает стабильно
+[ ] Добавить pipeline started/done уведомления в System топик
