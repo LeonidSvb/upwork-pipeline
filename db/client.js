@@ -181,10 +181,11 @@ export async function getTopJobs(limit = 50, filters = {}) {
   } = filters;
 
   const { rows } = await pool.query(
-    `SELECT j.id, j.title, j.url, j.type, j.hourly_min, j.hourly_max, j.fixed_budget,
-            j.client_country, j.client_score, j.client_total_spend, j.total_applicants,
-            j.ts_publish, j.scraped_at,
-            e.overall_score, e.is_relevant, e.primary_category, e.tags, e.llm_reasoning
+    `SELECT j.id, j.title, j.description, j.url, j.type, j.hourly_min, j.hourly_max, j.fixed_budget,
+            j.client_country, j.client_score, j.client_total_spend, j.client_total_jobs,
+            j.client_hire_rate, j.client_payment_verified, j.level, j.category, j.skills,
+            j.total_applicants, j.ts_publish, j.scraped_at,
+            e.overall_score, e.is_relevant, e.primary_category, e.tags, e.llm_reasoning, e.llm_raw
      FROM jobs j
      JOIN job_enrichments e ON j.id = e.job_id
      LEFT JOIN notifications n ON j.id = n.job_id

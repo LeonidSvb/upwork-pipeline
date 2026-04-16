@@ -4,6 +4,7 @@ import { markNotified } from '../db/client.js';
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const GROUP_ID = process.env.TG_GROUP_ID;
 const TOPIC_UPWORK = process.env.TG_TOPIC_UPWORK ? Number(process.env.TG_TOPIC_UPWORK) : null;
+const TG_LIMIT = 4000;
 
 function escapeHtml(str) {
   return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -14,10 +15,21 @@ function formatJob(job) {
     ? `$${job.hourly_min || '?'}-${job.hourly_max || '?'}/hr`
     : `$${job.fixed_budget || '?'} fixed`;
 
+  const skills = Array.isArray(job.skills)
+    ? job.skills.map(s => s.name || s).filter(Boolean).join(', ')
+    : '';
+
+  const hireRate = job.client_hire_rate != null
+    ? `${Math.round(job.client_hire_rate * 100)}% hire rate`
+    : null;
+
   const clientParts = [
     job.client_country,
-    job.client_score ? `score: ${job.client_score}` : 'new client',
-    job.client_total_spend ? `spent: $${Math.round(job.client_total_spend).toLocaleString()}` : null,
+    job.client_score ? `⭐ ${job.client_score}` : 'no score',
+    job.client_total_spend ? `spent $${Math.round(job.client_total_spend).toLocaleString()}` : 'no spend',
+    job.client_total_jobs ? `${job.client_total_jobs} jobs` : null,
+    hireRate,
+    job.client_payment_verified ? 'verified' : 'not verified',
   ].filter(Boolean);
 
   const raw = job.llm_raw || {};
@@ -27,14 +39,33 @@ function formatJob(job) {
     raw.newcomer_friendly && 'newcomer friendly',
   ].filter(Boolean);
 
-  return [
+  const desc = (job.description || '').trim();
+
+  const lines = [
     `<b>${escapeHtml(job.title)}</b>`,
-    `${escapeHtml(budget)} | Score: ${job.overall_score || '?'}/10 | ${job.total_applicants ?? '?'} applicants`,
-    `Client: ${escapeHtml(clientParts.join(' | '))}`,
-    flags.length ? `Flags: ${flags.join(' · ')}` : '',
-    job.llm_reasoning ? `<i>${escapeHtml(job.llm_reasoning)}</i>` : '',
-    `<a href="${job.url}">View on Upwork</a>`,
-  ].filter(Boolean).join('\n');
+    `${budget} | Score: ${job.overall_score || '?'}/10 | ${job.total_applicants ?? '?'} proposals | ${job.level || ''}`,
+    `Client: ${escapeHtml(clientParts.join(' · '))}`,
+    flags.length ? `Flags: ${flags.join(' · ')}` : null,
+    skills ? `Skills: ${escapeHtml(skills)}` : null,
+    job.llm_reasoning ? `\nAI: <i>${escapeHtml(job.llm_reasoning)}</i>` : null,
+    `\n${escapeHtml(desc)}`,
+    `\n<a href="${job.url}">Upwork</a>`,
+  ].filter(Boolean);
+
+  let text = lines.join('\n');
+
+  // Если длиннее лимита — обрезаем описание
+  if (text.length > TG_LIMIT) {
+    const overhead = text.length - desc.length;
+    const maxDesc = TG_LIMIT - overhead - 20;
+    const shortDesc = desc.substring(0, maxDesc) + '...';
+    const linesShort = lines.slice(0, -2);
+    linesShort.push(`\n${escapeHtml(shortDesc)}`);
+    linesShort.push(`\n<a href="${job.url}">Upwork</a>`);
+    text = linesShort.join('\n');
+  }
+
+  return text;
 }
 
 function jobButtons(jobId) {
