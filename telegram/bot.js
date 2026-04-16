@@ -2,15 +2,9 @@ import 'dotenv/config';
 import { saveFeedback } from '../db/client.js';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const GROUP_ID = process.env.TG_GROUP_ID;
 
-const BAD_REASONS = [
-  { text: 'Мало платят', code: 'low_budget' },
-  { text: 'Не моя специализация', code: 'wrong_skill' },
-  { text: 'Подозрительный клиент', code: 'bad_client' },
-  { text: 'Много заявок', code: 'too_competitive' },
-  { text: 'Требуют опыт/отзывы', code: 'need_reviews' },
-];
+// userId → { jobId, jobMessageId, questionMessageId, chatId, threadId }
+const waitingForReason = new Map();
 
 let offset = 0;
 
@@ -23,83 +17,103 @@ async function api(method, body = {}) {
   return res.json();
 }
 
-async function answerCallback(callbackId, text = '') {
-  await api('answerCallbackQuery', { callback_query_id: callbackId, text });
+async function answerCallback(id, text = '') {
+  await api('answerCallbackQuery', { callback_query_id: id, text });
 }
 
-async function editButtons(chatId, messageId, text, buttons = null) {
-  const body = { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' };
-  if (buttons !== null) {
-    body.reply_markup = buttons ? { inline_keyboard: buttons } : { inline_keyboard: [] };
-  }
-  await api('editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: body.reply_markup || { inline_keyboard: [] } });
+async function removeButtons(chatId, messageId) {
+  await api('editMessageReplyMarkup', {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: { inline_keyboard: [] },
+  });
 }
 
-async function sendReply(chatId, threadId, text, replyMarkup = null) {
-  const body = { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true };
+async function deleteMessage(chatId, messageId) {
+  await api('deleteMessage', { chat_id: chatId, message_id: messageId });
+}
+
+async function sendMessage(chatId, threadId, text) {
+  const body = { chat_id: chatId, text, parse_mode: 'HTML' };
   if (threadId) body.message_thread_id = threadId;
-  if (replyMarkup) body.reply_markup = replyMarkup;
-  return api('sendMessage', body);
+  const res = await api('sendMessage', body);
+  return res.result?.message_id;
 }
 
 async function handleCallback(cb) {
   const data = cb.data;
+  if (!data?.startsWith('fb:')) return;
+
+  const [, action, jobId] = data.split(':');
   const chatId = cb.message.chat.id;
   const messageId = cb.message.message_id;
   const threadId = cb.message.message_thread_id;
-
-  const [, action, jobId, reasonCode] = data.split(':');
+  const userId = cb.from.id;
 
   if (action === 'good') {
     await saveFeedback(jobId, 'good');
     await answerCallback(cb.id, 'Отмечено');
-    await editButtons(chatId, messageId, null, null);
-    console.log(`[feedback] good — ${jobId}`);
+    await removeButtons(chatId, messageId);
+    console.log(`[bot] good — ${jobId}`);
   }
 
   if (action === 'skip') {
     await saveFeedback(jobId, 'skip');
     await answerCallback(cb.id, 'Пропущено');
-    await editButtons(chatId, messageId, null, null);
-    console.log(`[feedback] skip — ${jobId}`);
+    await deleteMessage(chatId, messageId);
+    console.log(`[bot] skip — ${jobId}`);
   }
 
   if (action === 'bad') {
     await answerCallback(cb.id);
-    const reasonButtons = BAD_REASONS.map(r => ([{
-      text: r.text,
-      callback_data: `fb:reason:${jobId}:${r.code}`
-    }]));
-    await sendReply(chatId, threadId, 'Почему не подходит?', { inline_keyboard: reasonButtons });
-  }
-
-  if (action === 'reason') {
-    const reason = BAD_REASONS.find(r => r.code === reasonCode)?.text || reasonCode;
-    await saveFeedback(jobId, 'bad', reason);
-    await answerCallback(cb.id, 'Записано');
-    await editButtons(chatId, messageId, null, null);
-    console.log(`[feedback] bad (${reason}) — ${jobId}`);
+    const qId = await sendMessage(chatId, threadId, 'Почему не подходит? Напиши одним сообщением:');
+    waitingForReason.set(userId, { jobId, jobMessageId: messageId, questionMessageId: qId, chatId, threadId });
+    console.log(`[bot] waiting for reason — ${jobId}`);
   }
 }
 
+async function handleMessage(msg) {
+  const userId = msg.from?.id;
+  if (!userId || !waitingForReason.has(userId)) return;
+
+  const { jobId, jobMessageId, questionMessageId, chatId } = waitingForReason.get(userId);
+  const reason = msg.text?.trim();
+  if (!reason) return;
+
+  waitingForReason.delete(userId);
+
+  await saveFeedback(jobId, 'bad', reason);
+  await deleteMessage(chatId, jobMessageId);
+  await deleteMessage(chatId, questionMessageId);
+  await deleteMessage(chatId, msg.message_id);
+
+  console.log(`[bot] bad (${reason.substring(0, 60)}) — ${jobId}`);
+}
+
 async function poll() {
-  const data = await api('getUpdates', { offset, timeout: 30, allowed_updates: ['callback_query'] });
+  const data = await api('getUpdates', {
+    offset,
+    timeout: 30,
+    allowed_updates: ['callback_query', 'message'],
+  });
   if (!data.ok || !data.result?.length) return;
 
   for (const update of data.result) {
     offset = update.update_id + 1;
-    if (update.callback_query?.data?.startsWith('fb:')) {
-      try {
+    try {
+      if (update.callback_query?.data?.startsWith('fb:')) {
         await handleCallback(update.callback_query);
-      } catch (err) {
-        console.error('[bot] callback error:', err.message);
+      } else if (update.message?.text && !update.message?.text?.startsWith('/')) {
+        await handleMessage(update.message);
       }
+    } catch (err) {
+      console.error('[bot] error:', err.message);
     }
   }
 }
 
 async function main() {
-  console.log('[bot] Starting polling...');
+  console.log('[bot] Starting...');
   while (true) {
     try {
       await poll();
