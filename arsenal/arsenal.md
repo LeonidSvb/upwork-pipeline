@@ -19,7 +19,8 @@ AI: OpenAI API, Claude API
 
 | What | File | Use when |
 |------|------|----------|
-| Case studies (9 kейсов) | cases.md | Подбираю релевантные кейсы под джоб |
+| Case studies (9 кейсов) | cases.md | Подбираю релевантные кейсы под джоб |
+| Личные дифференциаторы + email templates | differentiators.md | Outreach джобы, пишу про себя, нужен рабочий шаблон |
 | Make workflows | workflows-make.md | Джоб требует Make/Integromat |
 | n8n workflows | workflows-n8n.md | Джоб требует n8n |
 | Cover letter formula | cover-letter.md | Пишу proposal |
