@@ -114,6 +114,8 @@ export async function getJobsToEnrich(limit = 20) {
      FROM jobs j
      LEFT JOIN job_enrichments e ON j.id = e.job_id
      WHERE e.job_id IS NULL
+       AND j.scraped_at >= NOW() - INTERVAL '3 days'
+       AND (j.total_applicants IS NULL OR j.total_applicants <= 30)
      ORDER BY j.ts_publish DESC
      LIMIT $1`,
     [limit]
@@ -198,6 +200,7 @@ export async function getTopJobs(limit = 50, filters = {}) {
          OR j.type IS NULL
        )
        AND n.job_id IS NULL
+       AND j.scraped_at >= NOW() - INTERVAL '3 days'
      ORDER BY e.overall_score DESC, j.ts_publish DESC
      LIMIT $6`,
     [minScore, maxProposals, hourlyMin, hourlyMax, fixedMax, limit]
@@ -220,6 +223,22 @@ export async function saveFeedback(jobId, feedback, reason = null) {
     `INSERT INTO job_feedback (job_id, feedback, reason) VALUES ($1, $2, $3)`,
     [jobId, feedback, reason]
   );
+}
+
+export async function getDailyStats() {
+  const { rows } = await pool.query(`
+    SELECT
+      (SELECT COUNT(*) FROM jobs) AS total_jobs,
+      (SELECT COUNT(*) FROM jobs WHERE scraped_at >= NOW() - INTERVAL '24 hours') AS jobs_24h,
+      (SELECT COUNT(*) FROM job_enrichments WHERE enriched_at >= NOW() - INTERVAL '24 hours') AS enriched_24h,
+      (SELECT COUNT(*) FROM notifications WHERE sent_at >= NOW() - INTERVAL '24 hours') AS notified_24h,
+      (SELECT COUNT(*) FROM job_feedback WHERE created_at >= NOW() - INTERVAL '24 hours') AS feedback_24h,
+      (SELECT COUNT(*) FROM job_feedback WHERE feedback = 'good' AND created_at >= NOW() - INTERVAL '24 hours') AS good_24h,
+      (SELECT COUNT(*) FROM job_feedback WHERE feedback = 'bad' AND created_at >= NOW() - INTERVAL '24 hours') AS bad_24h,
+      (SELECT MAX(finished_at) FROM scrape_runs WHERE status = 'succeeded') AS last_run,
+      (SELECT COUNT(*) FROM scrape_runs WHERE status = 'failed' AND finished_at >= NOW() - INTERVAL '24 hours') AS failed_runs_24h
+  `);
+  return rows[0];
 }
 
 export async function getJobById(id) {
