@@ -1,0 +1,35 @@
+name: Upwork Pipeline
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run pipeline
+        env:
+          APIFY_ACTOR_ID: ${{ secrets.APIFY_ACTOR_ID }}
+          APIFY_API_KEY: ${{ secrets.APIFY_API_KEY }}
+          APIFY_API_KEY_2: ${{ secrets.APIFY_API_KEY_2 }}
+          APIFY_API_KEY_3: ${{ secrets.APIFY_API_KEY_3 }}
+          APIFY_API_KEY_4: ${{ secrets.APIFY_API_KEY_4 }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+        run: node pipeline/run-once.js
