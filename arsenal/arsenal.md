@@ -24,6 +24,7 @@ AI: OpenAI API, Claude API
 | n8n workflows | workflows-n8n.md | Джоб требует n8n |
 | Cover letter formula | cover-letter.md | Пишу proposal |
 | Backlog задач | TODO.txt | Что ещё нужно сделать |
+| Отправленные proposals | ../proposals/index.txt | История, паттерны что сработало |
 
 ---
 
