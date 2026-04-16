@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import { saveFeedback } from '../db/client.js';
+import { handleIdea } from './ideas.js';
+
+const IDEAS_TOPIC_ID = parseInt(process.env.TG_TOPIC_IDEAS);
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -74,6 +77,12 @@ async function handleCallback(cb) {
 
 async function handleMessage(msg) {
   const userId = msg.from?.id;
+
+  if (msg.message_thread_id === IDEAS_TOPIC_ID) {
+    await handleIdea(api, msg);
+    return;
+  }
+
   if (!userId || !waitingForReason.has(userId)) return;
 
   const { jobId, jobMessageId, questionMessageId, chatId } = waitingForReason.get(userId);

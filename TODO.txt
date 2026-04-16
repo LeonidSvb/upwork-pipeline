@@ -1,0 +1,54 @@
+UPWORK PIPELINE — TODO & STATUS
+================================
+Updated: 2026-04-16
+
+=== CURRENT STATE ===
+
+[DONE] Telegram bot (telegram/bot.js)
+  - Long-polling бот слушает updates
+  - Good/Bad кнопки на каждом джобе
+  - Bad → бот спрашивает причину → сохраняет в Supabase
+  - Роутинг: сообщения в топик IDEAS обрабатываются отдельно
+
+[DONE] Ideas module (telegram/ideas.js)
+  - Сообщение из топика IDEAS → LLM (claude-haiku via OpenRouter)
+  - LLM возвращает: title, category, priority
+  - Сохраняет в Airtable (таблица Ideas)
+  - Отвечает в топик: "Saved / title / category | priority"
+
+[BLOCKED] Airtable category choices
+  - Поле category в таблице Ideas имеет choices: Category 1..7
+  - Нужно переименовать в: upwork, product, outreach, learning, business, life, other
+  - AIRTABLE_TOKEN не имеет scope schema:bases:write
+  - Airtable MCP подключен но OAuth не проходит
+  - FIX варианты:
+    A) Добавить scope schema:bases:write к токену на airtable.com/create/tokens
+    B) Переименовать вручную в Airtable UI (30 сек)
+
+=== FILES ===
+
+telegram/bot.js          — основной бот, polling, callbacks, роутинг по топикам
+telegram/ideas.js        — обработка идей: LLM + Airtable save
+db/client.js             — Supabase клиент, saveFeedback()
+docs/airtable-api-reference.md  — reference по Airtable API endpoints + IDs
+arsenal/                 — шаблоны, кейсы, cover letter формулы
+proposals/               — отправленные предложения
+
+=== ENV VARS NEEDED ===
+
+TELEGRAM_BOT_TOKEN
+TG_TOPIC_IDEAS          — ID топика для идей в группе
+OPENROUTER_BASE_URL
+OPENROUTER_API_KEY
+AIRTABLE_TOKEN          — нужен scope: data:records:write + schema:bases:write
+AIRTABLE_BASE_ID
+AIRTABLE_TABLE_ID       — tblnxUOzl6OTsW4IP (Ideas)
+SUPABASE_URL
+SUPABASE_KEY
+
+=== NEXT STEPS ===
+
+1. [BLOCKER] Починить category choices в Airtable (см. выше)
+2. Проверить end-to-end: написать в топик IDEAS → запись появляется в Airtable
+3. Добавить просмотр идей: команда /ideas в боте или отдельный endpoint
+4. Возможно: Airtable view для идей с фильтрами по category/priority/status
