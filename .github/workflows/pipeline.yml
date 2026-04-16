@@ -22,14 +22,14 @@ jobs:
 
       - name: Run pipeline
         env:
-          APIFY_ACTOR_ID: ${{ secrets.APIFY_ACTOR_ID }}
+          APIFY_ACTOR_ID: jupri~upwork
           APIFY_API_KEY: ${{ secrets.APIFY_API_KEY }}
           APIFY_API_KEY_2: ${{ secrets.APIFY_API_KEY_2 }}
           APIFY_API_KEY_3: ${{ secrets.APIFY_API_KEY_3 }}
           APIFY_API_KEY_4: ${{ secrets.APIFY_API_KEY_4 }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: 6978852648
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
         run: node pipeline/run-once.js
