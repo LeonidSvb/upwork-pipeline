@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
-import { saveFeedback, saveSkoolFeedback, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact } from '../db/client.js';
+import { saveFeedback, saveSkoolFeedback, saveOutreachAction, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
 import { enrichPending } from '../pipeline/enrich.js';
@@ -21,12 +21,33 @@ const waitingForReason = new Map();
 let offset = 0;
 
 async function api(method, body = {}) {
-  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return res.json();
+  const isLongPoll = method === 'getUpdates' && body.timeout;
+  const timeoutMs = isLongPoll ? (body.timeout + 5) * 1000 : 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const t0 = Date.now();
+  if (!isLongPoll) console.log(`[api] → ${method}`);
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const json = await res.json();
+    if (!isLongPoll) console.log(`[api] ← ${method} ${Date.now() - t0}ms ok=${json.ok}`);
+    return json;
+  } catch (e) {
+    const ms = Date.now() - t0;
+    if (e.name === 'AbortError') {
+      console.error(`[api] TIMEOUT ${method} after ${ms}ms`);
+    } else {
+      console.error(`[api] ERROR ${method} ${ms}ms: ${e.message}`);
+    }
+    return { ok: false, description: e.message };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function answerCallback(id, text = '') {
@@ -104,8 +125,35 @@ async function handleSkoolCallback(cb) {
     await answerCallback(cb.id, 'Good lead saved');
     await saveSkoolFeedback(postId, 'good');
     try { await removeButtons(chatId, messageId); } catch (e) { console.log('[skool] removeButtons:', e.message); }
-    console.log(`[skool] good saved — ${postId}`);
-    await sendNextPending(chatId, threadId, postId);
+    console.log(`[skool] good saved — ${postId}, asking action`);
+    const actionKeyboard = JSON.stringify({ inline_keyboard: [
+      [
+        { text: 'LinkedIn Connect', callback_data: `sk:action:${postId}:linkedin_connect` },
+        { text: 'Comment on post', callback_data: `sk:action:${postId}:comment` },
+      ],
+      [
+        { text: 'Skool DM', callback_data: `sk:action:${postId}:skool_dm` },
+        { text: 'LinkedIn Message', callback_data: `sk:action:${postId}:linkedin_message` },
+      ],
+      [
+        { text: 'Skip', callback_data: `sk:action:${postId}:skip` },
+      ],
+    ]});
+    const body = { chat_id: chatId, text: 'Что делаем?', reply_markup: actionKeyboard };
+    if (threadId) body.message_thread_id = threadId;
+    await api('sendMessage', body);
+  }
+
+  if (action === 'action') {
+    const realPostId = parts[2];
+    const actionType = parts[3];
+    await answerCallback(cb.id, actionType === 'skip' ? 'Пропущено' : `Записано: ${actionType}`);
+    try { await removeButtons(chatId, messageId); } catch {}
+    if (actionType !== 'skip') {
+      await saveOutreachAction(realPostId, actionType);
+      console.log(`[skool] outreach action=${actionType} — ${realPostId}`);
+    }
+    await sendNextPending(chatId, threadId, realPostId);
   }
 
   if (action === 'skip') {

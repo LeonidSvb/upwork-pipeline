@@ -288,6 +288,13 @@ export async function addToBlacklist(userId, name, reason = null) {
   );
 }
 
+export async function saveOutreachAction(postId, action) {
+  await pool.query(
+    `INSERT INTO skool_outreach (post_id, action) VALUES ($1, $2)`,
+    [postId, action]
+  );
+}
+
 export async function getSkoolSignalContact(postId) {
   const { rows } = await pool.query(
     `SELECT contact FROM skool_signals WHERE post_id = $1`,
