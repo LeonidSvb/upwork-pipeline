@@ -1,46 +1,32 @@
--- Upwork Pipeline Database Schema
-
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Raw jobs from scraper
 CREATE TABLE IF NOT EXISTS jobs (
-  id                    VARCHAR(30) PRIMARY KEY,
-  title                 TEXT NOT NULL,
-  description           TEXT,
-  url                   TEXT NOT NULL,
-  type                  VARCHAR(10),  -- HOURLY | FIXED
-  ts_publish            TIMESTAMPTZ,
-  ts_create             TIMESTAMPTZ,
-  scraped_at            TIMESTAMPTZ DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ,
-
-  -- Budget
-  hourly_min            NUMERIC,
-  hourly_max            NUMERIC,
-  fixed_budget          NUMERIC,
-
-  -- Client
-  client_country        VARCHAR(100),
-  client_score          NUMERIC,
-  client_total_spend    NUMERIC,
-  client_total_jobs     INT,
-  client_hire_rate      NUMERIC,
+  id                      VARCHAR(30) PRIMARY KEY,
+  title                   TEXT NOT NULL,
+  description             TEXT,
+  url                     TEXT NOT NULL,
+  type                    VARCHAR(10),
+  ts_publish              TIMESTAMPTZ,
+  ts_create               TIMESTAMPTZ,
+  scraped_at              TIMESTAMPTZ DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ,
+  hourly_min              NUMERIC,
+  hourly_max              NUMERIC,
+  fixed_budget            NUMERIC,
+  client_country          VARCHAR(100),
+  client_score            NUMERIC,
+  client_total_spend      NUMERIC,
+  client_total_jobs       INT,
+  client_hire_rate        NUMERIC,
   client_payment_verified BOOLEAN,
-
-  -- Job details
-  level                 VARCHAR(30),  -- EntryLevel | Intermediate | ExpertLevel
-  category              VARCHAR(100),
-  category_group        VARCHAR(100),
-  skills                JSONB,
-  qualifications        JSONB,
-
-  -- Activity
-  total_applicants      INT,
-  invited_to_interview  INT,
-
-  -- Raw data
-  raw                   JSONB,
-
+  level                   VARCHAR(30),
+  category                VARCHAR(100),
+  category_group          VARCHAR(100),
+  skills                  JSONB,
+  qualifications          JSONB,
+  total_applicants        INT,
+  invited_to_interview    INT,
+  raw                     JSONB,
   UNIQUE(id)
 );
 
@@ -48,92 +34,69 @@ CREATE INDEX IF NOT EXISTS idx_jobs_ts_publish ON jobs(ts_publish DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_scraped_at ON jobs(scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_type ON jobs(type);
 
--- LLM enrichment results
 CREATE TABLE IF NOT EXISTS job_enrichments (
-  id                    UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  job_id                VARCHAR(30) REFERENCES jobs(id) ON DELETE CASCADE,
-  enriched_at           TIMESTAMPTZ DEFAULT NOW(),
-  model                 VARCHAR(50),
-
-  -- LLM scores (0-10)
-  relevance_score       INT,
-  budget_score          INT,
-  client_quality_score  INT,
-  overall_score         INT,
-
-  -- LLM boolean flags
-  is_relevant           BOOLEAN,
-  is_good_client        BOOLEAN,
-  is_budget_ok          BOOLEAN,
-  has_clear_requirements BOOLEAN,
-  is_long_term          BOOLEAN,
-
-  -- LLM categorization
-  primary_category      VARCHAR(50),
-  tags                  TEXT[],
-  rejection_reasons     TEXT[],
-
-  -- Full LLM response
-  llm_reasoning         TEXT,
-  llm_raw               JSONB,
-
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  job_id        VARCHAR(30) REFERENCES jobs(id) ON DELETE CASCADE,
+  enriched_at   TIMESTAMPTZ DEFAULT NOW(),
+  model         VARCHAR(50),
+  overall_score INT,
+  llm_result    JSONB,
+  filter_result JSONB,
+  llm_reasoning TEXT,
   UNIQUE(job_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_enrichments_job_id ON job_enrichments(job_id);
-CREATE INDEX IF NOT EXISTS idx_enrichments_is_relevant ON job_enrichments(is_relevant);
+CREATE INDEX IF NOT EXISTS idx_enrichments_job_id       ON job_enrichments(job_id);
 CREATE INDEX IF NOT EXISTS idx_enrichments_overall_score ON job_enrichments(overall_score DESC);
 
--- Notifications sent
 CREATE TABLE IF NOT EXISTS notifications (
-  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  job_id      VARCHAR(30) REFERENCES jobs(id),
-  sent_at     TIMESTAMPTZ DEFAULT NOW(),
-  channel     VARCHAR(50),  -- telegram | email
-  status      VARCHAR(20),  -- sent | failed
-  message     TEXT
+  id      UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  job_id  VARCHAR(30) REFERENCES jobs(id),
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  channel VARCHAR(50),
+  status  VARCHAR(20),
+  message TEXT
 );
 
--- Scrape runs log
 CREATE TABLE IF NOT EXISTS scrape_runs (
-  id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  started_at      TIMESTAMPTZ DEFAULT NOW(),
-  finished_at     TIMESTAMPTZ,
-  apify_run_id    VARCHAR(50),
-  search_query    TEXT,
-  input           JSONB,
-  items_fetched   INT,
-  items_new       INT,
-  status          VARCHAR(20),  -- running | succeeded | failed
-  error           TEXT
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  started_at    TIMESTAMPTZ DEFAULT NOW(),
+  finished_at   TIMESTAMPTZ,
+  apify_run_id  VARCHAR(50),
+  search_query  TEXT,
+  input         JSONB,
+  items_fetched INT,
+  items_new     INT,
+  status        VARCHAR(20),
+  error         TEXT
 );
 
--- View: jobs with enrichment ready for UI
-CREATE OR REPLACE VIEW jobs_enriched AS
-  SELECT
-    j.id,
-    j.title,
-    j.url,
-    j.type,
-    j.hourly_min,
-    j.hourly_max,
-    j.fixed_budget,
-    j.client_country,
-    j.client_score,
-    j.client_total_spend,
-    j.client_hire_rate,
-    j.client_payment_verified,
-    j.level,
-    j.category,
-    j.skills,
-    j.ts_publish,
-    j.scraped_at,
-    e.is_relevant,
-    e.overall_score,
-    e.primary_category,
-    e.tags,
-    e.llm_reasoning,
-    e.rejection_reasons
-  FROM jobs j
-  LEFT JOIN job_enrichments e ON j.id = e.job_id
-  ORDER BY e.overall_score DESC NULLS LAST, j.ts_publish DESC;
+CREATE TABLE IF NOT EXISTS user_feedback (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  job_id     VARCHAR(30) REFERENCES jobs(id),
+  action     VARCHAR(20),
+  reason     TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS skool_signals (
+  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  post_id     VARCHAR(100) UNIQUE NOT NULL,
+  post_url    TEXT,
+  post_title  TEXT,
+  category    VARCHAR(100),
+  created_at  TIMESTAMPTZ,
+  scraped_at  TIMESTAMPTZ DEFAULT NOW(),
+  is_signal   BOOLEAN,
+  confidence  VARCHAR(10),
+  signal_type VARCHAR(50),
+  signal_text TEXT,
+  reason      TEXT,
+  contact     JSONB,
+  notified    BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_skool_signals_post_id    ON skool_signals(post_id);
+CREATE INDEX IF NOT EXISTS idx_skool_signals_notified   ON skool_signals(notified);
+CREATE INDEX IF NOT EXISTS idx_skool_signals_confidence ON skool_signals(confidence);
+CREATE INDEX IF NOT EXISTS idx_skool_signals_created_at ON skool_signals(created_at DESC);
