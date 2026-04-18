@@ -1,5 +1,29 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
+import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const LOCK_FILE = resolve(__dirname, '../bot.lock');
+
+function acquireLock() {
+  if (existsSync(LOCK_FILE)) {
+    const pid = readFileSync(LOCK_FILE, 'utf8').trim();
+    try {
+      process.kill(Number(pid), 0); // 0 = just check if process exists
+      console.error(`[bot] Already running (PID ${pid}). Kill it first or delete bot.lock`);
+      process.exit(1);
+    } catch {
+      console.warn(`[bot] Stale lock (PID ${pid} not running), overwriting`);
+    }
+  }
+  writeFileSync(LOCK_FILE, String(process.pid));
+  const cleanup = () => { try { unlinkSync(LOCK_FILE); } catch {} };
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+}
 import { saveFeedback, saveSkoolFeedback, saveOutreachAction, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact, getRecentJobs, getLastScrapeTime } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
@@ -530,6 +554,8 @@ async function poll() {
 let pollCount = 0;
 
 async function main() {
+  acquireLock();
+  console.log(`[bot] Lock acquired (PID ${process.pid})`);
   console.log('[bot] Starting... token:', process.env.TELEGRAM_BOT_TOKEN ? 'ok' : 'MISSING');
   console.log('[bot] Chat ID:', process.env.TG_GROUP_ID || 'MISSING');
   console.log('[bot] Skool topic:', process.env.TG_TOPIC_SKOOL || 'MISSING');
