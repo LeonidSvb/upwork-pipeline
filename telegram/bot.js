@@ -93,17 +93,20 @@ async function handleSkoolCallback(cb) {
   const threadId = cb.message.message_thread_id;
   const userId = cb.from.id;
 
+  console.log(`[skool] action=${action} postId=${postId}`);
+
   if (action === 'good') {
-    await saveSkoolFeedback(postId, 'good');
     await answerCallback(cb.id, 'Good lead saved');
-    try { await removeButtons(chatId, messageId); } catch {}
-    console.log(`[bot] skool good — ${postId}`);
+    await saveSkoolFeedback(postId, 'good');
+    try { await removeButtons(chatId, messageId); } catch (e) { console.log('[skool] removeButtons:', e.message); }
+    console.log(`[skool] good saved — ${postId}`);
     await sendNextPending(chatId, threadId, postId);
   }
 
   if (action === 'skip') {
     await answerCallback(cb.id, 'Skipped');
-    try { await removeButtons(chatId, messageId); } catch {}
+    try { await removeButtons(chatId, messageId); } catch (e) { console.log('[skool] removeButtons:', e.message); }
+    console.log(`[skool] skip — ${postId}`);
     await sendNextPending(chatId, threadId, postId);
   }
 
@@ -111,24 +114,24 @@ async function handleSkoolCallback(cb) {
     await answerCallback(cb.id);
     const qId = await sendMessage(chatId, threadId, 'Почему не релевантно? Одним сообщением:');
     waitingForReason.set(userId, { type: 'skool', postId, jobMessageId: messageId, questionMessageId: qId, chatId, threadId });
-    console.log(`[bot] skool waiting for reason — ${postId}`);
+    console.log(`[skool] waiting for reason — ${postId}`);
   }
 }
 
 async function sendNextPending(chatId, threadId, justDonePostId) {
   try {
+    console.log(`[skool] loading next pending after ${justDonePostId}`);
     const all = await getPendingSkoolSignals();
     const remaining = all.filter(s => s.post_id !== justDonePostId);
+    console.log(`[skool] remaining: ${remaining.length}`);
     if (!remaining.length) {
       await reply(chatId, threadId, 'Очередь разобрана. Новых сигналов нет.');
       return;
     }
-    const next = remaining[0];
-    const pos = 1;
-    const total = remaining.length;
-    await sendSkoolSignalMessage(chatId, threadId, next, pos, total);
+    await sendSkoolSignalMessage(chatId, threadId, remaining[0], 1, remaining.length);
   } catch (e) {
-    console.error('[bot] sendNextPending error:', e.message);
+    console.error('[skool] sendNextPending error:', e.message);
+    await reply(chatId, threadId, `Ошибка: ${e.message}`);
   }
 }
 
@@ -393,19 +396,25 @@ async function poll() {
   for (const update of data.result) {
     offset = update.update_id + 1;
     try {
-      if (update.callback_query?.data?.startsWith('fb:')) {
-        await handleCallback(update.callback_query);
+      if (update.callback_query) {
+        const cb = update.callback_query;
+        console.log(`[bot] callback: ${cb.data} from ${cb.from?.username || cb.from?.id}`);
+        await handleCallback(cb);
       } else if (update.message?.text) {
-        await handleMessage(update.message);
+        const msg = update.message;
+        console.log(`[bot] message: "${msg.text?.slice(0, 60)}" from ${msg.from?.username || msg.from?.id}`);
+        await handleMessage(msg);
       }
     } catch (err) {
-      console.error('[bot] error:', err.message);
+      console.error('[bot] error:', err.message, err.stack?.split('\n')[1]);
     }
   }
 }
 
 async function main() {
-  console.log('[bot] Starting...');
+  console.log('[bot] Starting... token:', process.env.TELEGRAM_BOT_TOKEN ? 'ok' : 'MISSING');
+  console.log('[bot] Chat ID:', process.env.TG_GROUP_ID || 'MISSING');
+  console.log('[bot] Skool topic:', process.env.TG_TOPIC_SKOOL || 'MISSING');
   while (true) {
     try {
       await poll();
