@@ -528,7 +528,12 @@ async function poll() {
     allowed_updates: ['callback_query', 'message'],
   });
   if (!data.ok) {
-    console.warn(`[poll #${pollCount}] getUpdates failed: ${data.description}`);
+    if (data.description?.includes('Conflict')) {
+      console.warn(`[poll #${pollCount}] Conflict — waiting 35s for other instance to release`);
+      await new Promise(r => setTimeout(r, 35000));
+    } else {
+      console.warn(`[poll #${pollCount}] getUpdates failed: ${data.description}`);
+    }
     return;
   }
   if (!data.result?.length) return;
