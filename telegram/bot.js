@@ -497,12 +497,17 @@ async function handleMessage(msg) {
 }
 
 async function poll() {
+  pollCount++;
   const data = await api('getUpdates', {
     offset,
     timeout: 30,
     allowed_updates: ['callback_query', 'message'],
   });
-  if (!data.ok || !data.result?.length) return;
+  if (!data.ok) {
+    console.warn(`[poll #${pollCount}] getUpdates failed: ${data.description}`);
+    return;
+  }
+  if (!data.result?.length) return;
 
   for (const update of data.result) {
     offset = update.update_id + 1;
@@ -522,10 +527,23 @@ async function poll() {
   }
 }
 
+let pollCount = 0;
+
 async function main() {
   console.log('[bot] Starting... token:', process.env.TELEGRAM_BOT_TOKEN ? 'ok' : 'MISSING');
   console.log('[bot] Chat ID:', process.env.TG_GROUP_ID || 'MISSING');
   console.log('[bot] Skool topic:', process.env.TG_TOPIC_SKOOL || 'MISSING');
+
+  // Check for webhook — if set, getUpdates won't receive anything
+  const wh = await api('getWebhookInfo', {});
+  if (wh.ok && wh.result?.url) {
+    console.warn(`[bot] WARNING: webhook is set to ${wh.result.url} — clearing it`);
+    await api('deleteWebhook', {});
+    console.log('[bot] Webhook cleared, switching to long-poll');
+  } else {
+    console.log('[bot] No webhook, long-poll mode OK');
+  }
+
   while (true) {
     try {
       await poll();
