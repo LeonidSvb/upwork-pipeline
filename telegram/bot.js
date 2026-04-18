@@ -60,7 +60,8 @@ async function sendSkoolSignalMessage(chatId, threadId, s, pos, total) {
   const name = contact.name || 'Unknown';
   const linkedin = contact.linkedin || '';
   const namePart = linkedin ? `<a href="${linkedin}">${name}</a>` : name;
-  const postLink = s.post_url ? ` | <a href="${s.post_url}">Open post</a>` : '';
+  const postUrl = s.post_url || `https://www.skool.com/${s.community || 'community'}?p=${s.post_id}`;
+  const postLink = ` | <a href="${postUrl}">Open post</a>`;
 
   const text = [
     `[${pos}/${total}] [${conf}] ${stype} | ${intent} | ${s.community || 'skool'}`,
