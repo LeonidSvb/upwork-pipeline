@@ -58,7 +58,7 @@ export async function runScrapeAll(age = null) {
 }
 
 // Direct run: node pipeline/scrape.js
-if (process.argv[1].endsWith('scrape.js')) {
+if (process.argv[1]?.endsWith('scrape.js')) {
   runScrapeAll().then(r => {
     console.log('\n[done]', r);
     process.exit(0);
