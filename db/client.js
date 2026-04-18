@@ -177,8 +177,7 @@ export async function getTopJobs(limit = 50, filters = {}) {
     minScore = 6,
     maxProposals = 15,
     hourlyMin = 15,
-    hourlyMax = 45,
-    fixedMax = 500,
+    hourlyMax = 80,
     notifiedOnly = false,
   } = filters;
 
@@ -195,15 +194,14 @@ export async function getTopJobs(limit = 50, filters = {}) {
        AND (j.total_applicants IS NULL OR j.total_applicants <= $2)
        AND (
          (j.type = 'HOURLY' AND (j.hourly_min IS NULL OR j.hourly_min <= $4) AND (j.hourly_max IS NULL OR j.hourly_max >= $3))
-         OR
-         (j.type = 'FIXED' AND (j.fixed_budget IS NULL OR j.fixed_budget <= $5))
+         OR j.type = 'FIXED'
          OR j.type IS NULL
        )
        AND n.job_id IS NULL
        AND j.scraped_at >= NOW() - INTERVAL '3 days'
      ORDER BY e.overall_score DESC, j.ts_publish DESC
-     LIMIT $6`,
-    [minScore, maxProposals, hourlyMin, hourlyMax, fixedMax, limit]
+     LIMIT $5`,
+    [minScore, maxProposals, hourlyMin, hourlyMax, limit]
   );
   return rows;
 }

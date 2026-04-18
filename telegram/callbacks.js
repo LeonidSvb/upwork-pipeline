@@ -61,6 +61,27 @@ async function handleCallback(cb) {
   const messageId = cb.message.message_id;
   const threadId = cb.message.message_thread_id;
 
+  if (action === 'applied') {
+    await saveFeedback(jobId, 'applied');
+    await answerCallback(cb.id, 'Отклик отправлен — записано');
+    await removeButtons(chatId, messageId);
+    console.log(`[callbacks] applied — ${jobId}`);
+  }
+
+  if (action === 'maybe') {
+    await saveFeedback(jobId, 'maybe');
+    await answerCallback(cb.id, 'Помечено как интересное');
+    await api('editMessageReplyMarkup', {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: [[
+        { text: 'Откликнулся', callback_data: `fb:applied:${jobId}` },
+        { text: 'Скрыть', callback_data: `fb:skip:${jobId}` },
+      ]] },
+    });
+    console.log(`[callbacks] maybe — ${jobId}`);
+  }
+
   if (action === 'good') {
     await saveFeedback(jobId, 'good');
     await answerCallback(cb.id, 'Подходит — записано');

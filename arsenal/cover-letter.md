@@ -9,7 +9,8 @@
 6. Soft CTA — "Happy to jump on a quick call or send more details"
 7. Если в джобе написано "start with X" — всегда делать
 
-## Hook Formulas
+## Hook Formulas (with demo)
+- Hey - 𝗜 𝗮𝗹𝗿𝗲𝗮𝗱𝘆 𝗯𝘂𝗶𝗹𝘁 𝘆𝗼𝘂𝗿 [название проекта], easier to show than explain: [demo link]
 - 𝗜'𝘃𝗲 𝗯𝘂𝗶𝗹𝘁 𝗲𝘅𝗮𝗰𝘁𝗹𝘆 𝘁𝗵𝗶𝘀 — [result] for [niche] in [timeframe]
 - 𝗦𝗶𝗺𝗶𝗹𝗮𝗿 𝗽𝗿𝗼𝗷𝗲𝗰𝘁: [metric] in [timeframe] — here's how
 - 𝗬𝗼𝘂𝗿 𝗽𝗿𝗼𝗯𝗹𝗲𝗺: [their pain]. 𝗠𝘆 𝘀𝗼𝗹𝘂𝘁𝗶𝗼𝗻: [what you do]
@@ -20,6 +21,16 @@
 3. Показать — работающий процесс, не слайды
 4. Закончить — "This is exactly what I'd do for you, happy to discuss"
 Длина: 2-4 минуты максимум
+
+## Formatting Rules
+- Дефис только короткий (-), никогда длинное тире (—)
+- Вопросы — каждый с новой строки, без пробелов между ними, формат: "1 - вопрос"
+- CTA дружелюбный, можно один :) в конце
+
+## CTA для новых клиентов (0 hire rate / новый аккаунт)
+Если клиент новый на Upwork - добавить в конец:
+"just shoot me a message here, otherwise Upwork won't let us chat :)"
+Причина: у новых клиентов нет открытого chat window пока они сами не напишут.
 
 ## По типу джоба
 - Cold outreach / lead gen → кейс + Loom с working sequence

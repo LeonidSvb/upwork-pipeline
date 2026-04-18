@@ -1,6 +1,11 @@
 import 'dotenv/config';
 import { saveFeedback } from '../db/client.js';
 import { handleIdea } from './ideas.js';
+import { runScrapeAll } from '../pipeline/scrape.js';
+import { enrichPending } from '../pipeline/enrich.js';
+import { getTopJobs, markNotified } from '../db/client.js';
+import { notifyNewJobs } from '../notifications/telegram.js';
+import { CONFIG } from '../config.js';
 
 const IDEAS_TOPIC_ID = parseInt(process.env.TG_TOPIC_IDEAS);
 
@@ -75,11 +80,49 @@ async function handleCallback(cb) {
   }
 }
 
+let pipelineRunning = false;
+
+async function reply(chatId, threadId, text) {
+  const body = { chat_id: chatId, text };
+  if (threadId) body.message_thread_id = threadId;
+  await api('sendMessage', body);
+}
+
+async function runPipeline(chatId, threadId) {
+  if (pipelineRunning) {
+    await reply(chatId, threadId, 'Уже запущено, подожди...');
+    return;
+  }
+  pipelineRunning = true;
+  await reply(chatId, threadId, 'Запускаю скрейпинг за последние 2 часа...');
+  try {
+    const scrapeResults = await runScrapeAll();
+    const totalNew = scrapeResults.reduce((sum, r) => sum + (r.new || 0), 0);
+    if (totalNew > 0) await enrichPending(Math.min(totalNew + 10, 100));
+    const jobs = await getTopJobs(20, CONFIG.notify);
+    if (jobs.length > 0) {
+      await notifyNewJobs(jobs);
+      await reply(chatId, threadId, `Готово. Новых: ${totalNew}, отправлено: ${jobs.length}`);
+    } else {
+      await reply(chatId, threadId, `Готово. Новых джобов: ${totalNew}. Подходящих нет.`);
+    }
+  } catch (err) {
+    await reply(chatId, threadId, `Ошибка: ${err.message}`);
+    console.error('[bot] pipeline error:', err.message);
+  }
+  pipelineRunning = false;
+}
+
 async function handleMessage(msg) {
   const userId = msg.from?.id;
 
   if (msg.message_thread_id === IDEAS_TOPIC_ID) {
     await handleIdea(api, msg);
+    return;
+  }
+
+  if (msg.text?.trim().startsWith('/run')) {
+    await runPipeline(msg.chat.id, msg.message_thread_id);
     return;
   }
 
@@ -112,7 +155,7 @@ async function poll() {
     try {
       if (update.callback_query?.data?.startsWith('fb:')) {
         await handleCallback(update.callback_query);
-      } else if (update.message?.text && !update.message?.text?.startsWith('/')) {
+      } else if (update.message?.text) {
         await handleMessage(update.message);
       }
     } catch (err) {

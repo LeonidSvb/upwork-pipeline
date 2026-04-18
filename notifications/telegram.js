@@ -59,7 +59,8 @@ function formatJob(job) {
 function jobButtons(jobId) {
   return {
     inline_keyboard: [[
-      { text: 'Подходит', callback_data: `fb:good:${jobId}` },
+      { text: 'Откликнулся', callback_data: `fb:applied:${jobId}` },
+      { text: 'Интересно', callback_data: `fb:maybe:${jobId}` },
       { text: 'Не моё', callback_data: `fb:bad:${jobId}` },
     ]]
   };

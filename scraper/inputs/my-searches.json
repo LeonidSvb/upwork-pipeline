@@ -7,7 +7,7 @@
       "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -19,7 +19,7 @@
       "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -31,7 +31,7 @@
       "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -43,7 +43,7 @@
       "search.none": "tutoring teaching course certification SEO content writing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -55,7 +55,7 @@
       "search.none": "tutoring teaching course Django full-stack certification SEO content writing machine learning deep learning",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -67,7 +67,7 @@
       "search.none": "tutoring teaching course certification SEO content writing graphic design video editing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   },
@@ -79,7 +79,7 @@
       "search.none": "tutoring teaching course certification SEO content writing graphic design video editing",
       "limit": 100,
       "sort": "newest",
-      "age": 30,
+      "age": 120,
       "age_unit": "minute"
     }
   }

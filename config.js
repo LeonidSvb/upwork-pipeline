@@ -26,7 +26,6 @@ export const CONFIG = {
     minScore: 6,
     maxProposals: 15,
     hourlyMin: 15,
-    hourlyMax: 45,
-    fixedMax: 500,
+    hourlyMax: 80,
   },
 };
