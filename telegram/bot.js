@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
-import { saveFeedback, saveSkoolFeedback, getPendingSkoolSignals } from '../db/client.js';
+import { saveFeedback, saveSkoolFeedback, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
 import { enrichPending } from '../pipeline/enrich.js';
@@ -73,11 +73,16 @@ async function sendSkoolSignalMessage(chatId, threadId, s, pos, total) {
     `Why: ${s.reason || ''}`,
   ].join('\n');
 
-  const keyboard = JSON.stringify({ inline_keyboard: [[
-    { text: 'Good lead', callback_data: `sk:good:${s.post_id}` },
-    { text: 'Skip', callback_data: `sk:skip:${s.post_id}` },
-    { text: 'Not relevant', callback_data: `sk:bad:${s.post_id}` },
-  ]]});
+  const keyboard = JSON.stringify({ inline_keyboard: [
+    [
+      { text: 'Good lead', callback_data: `sk:good:${s.post_id}` },
+      { text: 'Skip', callback_data: `sk:skip:${s.post_id}` },
+      { text: 'Not relevant', callback_data: `sk:bad:${s.post_id}` },
+    ],
+    [
+      { text: 'Blacklist user', callback_data: `sk:bl:${s.post_id}` },
+    ],
+  ]});
 
   const body = { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: keyboard };
   if (threadId) body.message_thread_id = threadId;
@@ -115,6 +120,23 @@ async function handleSkoolCallback(cb) {
     const qId = await sendMessage(chatId, threadId, 'Почему не релевантно? Одним сообщением:');
     waitingForReason.set(userId, { type: 'skool', postId, jobMessageId: messageId, questionMessageId: qId, chatId, threadId });
     console.log(`[skool] waiting for reason — ${postId}`);
+  }
+
+  if (action === 'bl') {
+    try {
+      const contact = await getSkoolSignalContact(postId);
+      const blUserId = contact.user_id || postId;
+      const blName = contact.name || 'Unknown';
+      await addToBlacklist(blUserId, blName);
+      await saveSkoolFeedback(postId, 'blacklisted');
+      await answerCallback(cb.id, `${blName} в blacklist`);
+      try { await removeButtons(chatId, messageId); } catch {}
+      console.log(`[skool] blacklisted ${blName} (${blUserId})`);
+      await sendNextPending(chatId, threadId, postId);
+    } catch (e) {
+      console.error('[skool] blacklist error:', e.message);
+      await answerCallback(cb.id, 'Ошибка');
+    }
   }
 }
 

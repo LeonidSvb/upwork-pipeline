@@ -253,7 +253,10 @@ export async function saveSkoolFeedback(postId, feedback, reason = null) {
 }
 
 export async function getPendingSkoolSignals({ community = null, confidenceOnly = false } = {}) {
-  const conditions = [`is_signal = TRUE`, `notified = TRUE`, `feedback IS NULL`];
+  const conditions = [
+    `is_signal = TRUE`, `notified = TRUE`, `feedback IS NULL`,
+    `NOT EXISTS (SELECT 1 FROM skool_blacklist b WHERE b.user_id = (s.contact->>'user_id'))`,
+  ];
   const params = [];
 
   if (community) {
@@ -268,12 +271,28 @@ export async function getPendingSkoolSignals({ community = null, confidenceOnly 
 
   const where = conditions.join(' AND ');
   const { rows } = await pool.query(
-    `SELECT post_id, post_url, post_title, category, community, confidence, intent,
-            signal_type, signal_text, contact, reason
-     FROM skool_signals
+    `SELECT s.post_id, s.post_url, s.post_title, s.category, s.community, s.confidence, s.intent,
+            s.signal_type, s.signal_text, s.contact, s.reason
+     FROM skool_signals s
      WHERE ${where}
-     ORDER BY CASE confidence WHEN 'high' THEN 0 ELSE 1 END, created_at DESC`,
+     ORDER BY CASE s.confidence WHEN 'high' THEN 0 ELSE 1 END, s.created_at DESC`,
     params
   );
   return rows;
+}
+
+export async function addToBlacklist(userId, name, reason = null) {
+  await pool.query(
+    `INSERT INTO skool_blacklist (user_id, name, reason) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO NOTHING`,
+    [userId, name, reason]
+  );
+}
+
+export async function getSkoolSignalContact(postId) {
+  const { rows } = await pool.query(
+    `SELECT contact FROM skool_signals WHERE post_id = $1`,
+    [postId]
+  );
+  if (!rows[0]) return {};
+  try { return typeof rows[0].contact === 'string' ? JSON.parse(rows[0].contact) : (rows[0].contact || {}); } catch { return {}; }
 }
