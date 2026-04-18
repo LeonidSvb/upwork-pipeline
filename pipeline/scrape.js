@@ -8,10 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const searches = JSON.parse(readFileSync(resolve(__dirname, '../scraper/inputs/my-searches.json'), 'utf8'));
 
-export async function runScrapeAll() {
+export async function runScrapeAll(age = null) {
   const results = [];
 
   for (const { name, input } of searches) {
+    if (age) input.age = age;
     console.log(`\n[pipeline] Scraping: ${name}`);
     const startedAt = new Date();
     let runResult;

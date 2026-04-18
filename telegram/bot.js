@@ -6,6 +6,7 @@ import { enrichPending } from '../pipeline/enrich.js';
 import { getTopJobs, markNotified } from '../db/client.js';
 import { notifyNewJobs } from '../notifications/telegram.js';
 import { CONFIG } from '../config.js';
+import cron from 'node-cron';
 
 const IDEAS_TOPIC_ID = parseInt(process.env.TG_TOPIC_IDEAS);
 
@@ -81,6 +82,21 @@ async function handleCallback(cb) {
 }
 
 let pipelineRunning = false;
+let cronJob = null;
+let runCount = 0;
+let lastRunAt = null;
+let monitorChatId = null;
+let monitorThreadId = null;
+
+function nextRunTime() {
+  const now = new Date();
+  const next = new Date(now);
+  const mins = now.getMinutes();
+  const nextMins = Math.ceil((mins + 1) / 20) * 20;
+  next.setMinutes(nextMins, 0, 0);
+  if (next <= now) next.setMinutes(next.getMinutes() + 20);
+  return next.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
 
 async function reply(chatId, threadId, text) {
   const body = { chat_id: chatId, text };
@@ -88,23 +104,28 @@ async function reply(chatId, threadId, text) {
   await api('sendMessage', body);
 }
 
-async function runPipeline(chatId, threadId) {
+async function runPipeline(chatId, threadId, age = 120, silent = false) {
   if (pipelineRunning) {
-    await reply(chatId, threadId, 'Уже запущено, подожди...');
+    if (!silent) await reply(chatId, threadId, 'Уже запущено, подожди...');
     return;
   }
   pipelineRunning = true;
-  await reply(chatId, threadId, 'Запускаю скрейпинг за последние 2 часа...');
+  runCount++;
+  lastRunAt = new Date();
+  const label = age === 30 ? '30 мин' : '2 часа';
+  if (!silent) await reply(chatId, threadId, `Скрейпинг за последние ${label}...`);
   try {
-    const scrapeResults = await runScrapeAll();
+    const scrapeResults = await runScrapeAll(age);
     const totalNew = scrapeResults.reduce((sum, r) => sum + (r.new || 0), 0);
     if (totalNew > 0) await enrichPending(Math.min(totalNew + 10, 100));
     const jobs = await getTopJobs(20, CONFIG.notify);
     if (jobs.length > 0) {
       await notifyNewJobs(jobs);
-      await reply(chatId, threadId, `Готово. Новых: ${totalNew}, отправлено: ${jobs.length}`);
+      const next = cronJob ? ` Следующий в ${nextRunTime()}` : '';
+      await reply(chatId, threadId, `Готово. Новых: ${totalNew}, отправлено: ${jobs.length}.${next}`);
     } else {
-      await reply(chatId, threadId, `Готово. Новых джобов: ${totalNew}. Подходящих нет.`);
+      const next = cronJob ? ` Следующий запуск в ${nextRunTime()}.` : '';
+      await reply(chatId, threadId, `Запуск #${runCount} — подходящих нет.${next}`);
     }
   } catch (err) {
     await reply(chatId, threadId, `Ошибка: ${err.message}`);
@@ -121,8 +142,56 @@ async function handleMessage(msg) {
     return;
   }
 
+  if (msg.text?.trim().startsWith('/help')) {
+    await reply(msg.chat.id, msg.message_thread_id,
+      '/start_jobs — включить мониторинг каждые 20 мин\n' +
+      '/stop_jobs — выключить мониторинг\n' +
+      '/run — разовый скрейп за последние 2 часа\n' +
+      '/status — текущее состояние\n' +
+      '/help — список команд'
+    );
+    return;
+  }
+
+  if (msg.text?.trim().startsWith('/status')) {
+    const monitoring = cronJob ? 'ON' : 'OFF';
+    const last = lastRunAt ? lastRunAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'не было';
+    const next = cronJob ? ` Следующий в ${nextRunTime()}.` : '';
+    await reply(msg.chat.id, msg.message_thread_id,
+      `Мониторинг: ${monitoring}\nПоследний запуск: ${last}\nЗапусков за сессию: ${runCount}${next}`
+    );
+    return;
+  }
+
   if (msg.text?.trim().startsWith('/run')) {
-    await runPipeline(msg.chat.id, msg.message_thread_id);
+    await runPipeline(msg.chat.id, msg.message_thread_id, 120);
+    return;
+  }
+
+  if (msg.text?.trim().startsWith('/start_jobs')) {
+    if (cronJob) {
+      await reply(msg.chat.id, msg.message_thread_id, `Мониторинг уже запущен. Следующий запуск в ${nextRunTime()}.`);
+      return;
+    }
+    monitorChatId = msg.chat.id;
+    monitorThreadId = msg.message_thread_id;
+    cronJob = cron.schedule('*/20 * * * *', () => {
+      runPipeline(monitorChatId, monitorThreadId, 30).catch(console.error);
+    });
+    await reply(msg.chat.id, msg.message_thread_id, `Мониторинг включен — каждые 20 мин. Следующий авто-запуск в ${nextRunTime()}. Запускаю первый скрейп...`);
+    await runPipeline(msg.chat.id, msg.message_thread_id, 30);
+    return;
+  }
+
+  if (msg.text?.trim().startsWith('/stop_jobs')) {
+    if (!cronJob) {
+      await reply(msg.chat.id, msg.message_thread_id, 'Мониторинг не был запущен.');
+      return;
+    }
+    cronJob.stop();
+    cronJob = null;
+    await reply(msg.chat.id, msg.message_thread_id, `Мониторинг остановлен. Было запусков: ${runCount}.`);
+    runCount = 0;
     return;
   }
 

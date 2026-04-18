@@ -198,7 +198,7 @@ export async function getTopJobs(limit = 50, filters = {}) {
          OR j.type IS NULL
        )
        AND n.job_id IS NULL
-       AND j.scraped_at >= NOW() - INTERVAL '3 days'
+       AND j.ts_publish >= NOW() - INTERVAL '3 hours'
      ORDER BY e.overall_score DESC, j.ts_publish DESC
      LIMIT $5`,
     [minScore, maxProposals, hourlyMin, hourlyMax, limit]
