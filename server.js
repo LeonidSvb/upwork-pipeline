@@ -38,7 +38,7 @@ app.get('/api/jobs', async (req, res) => {
       params.push(Number(maxProposals));
     }
     if (category) {
-      conditions.push(`e.primary_category = $${p++}`);
+      conditions.push(`e.filter_result->>'niche' = $${p++}`);
       params.push(category);
     }
     if (type) {
@@ -66,9 +66,7 @@ app.get('/api/jobs', async (req, res) => {
         j.hourly_min, j.hourly_max, j.fixed_budget,
         j.client_country, j.client_score, j.client_total_spend, j.total_applicants,
         j.level, j.category, j.skills,
-        e.overall_score, e.is_relevant, e.primary_category,
-        e.tags, e.llm_reasoning, e.rejection_reasons,
-        e.is_good_client, e.is_long_term, e.is_budget_ok,
+        e.overall_score, e.llm_result, e.filter_result, e.llm_reasoning,
         n.job_id IS NOT NULL AS notified
        FROM jobs j
        JOIN job_enrichments e ON j.id = e.job_id
@@ -102,7 +100,7 @@ app.get('/api/stats', async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM jobs) AS total_jobs,
         (SELECT COUNT(*) FROM job_enrichments) AS enriched,
-        (SELECT COUNT(*) FROM job_enrichments WHERE is_relevant = true) AS relevant,
+        (SELECT COUNT(*) FROM job_enrichments WHERE overall_score >= 6) AS relevant,
         (SELECT COUNT(*) FROM job_enrichments WHERE overall_score >= 7) AS high_score,
         (SELECT COUNT(*) FROM notifications) AS notified,
         (SELECT COUNT(*) FROM scrape_runs WHERE status = 'succeeded') AS successful_runs,

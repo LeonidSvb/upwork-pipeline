@@ -236,7 +236,7 @@ export async function getDailyStats() {
 
 export async function getJobById(id) {
   const { rows } = await pool.query(
-    `SELECT j.*, e.overall_score, e.llm_reasoning, e.tags, e.primary_category
+    `SELECT j.*, e.overall_score, e.llm_reasoning, e.llm_result, e.filter_result
      FROM jobs j
      LEFT JOIN job_enrichments e ON j.id = e.job_id
      WHERE j.id = $1`,
