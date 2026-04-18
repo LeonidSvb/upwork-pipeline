@@ -1,10 +1,16 @@
 {
 	"folders": [
 		{
-			"path": "../upwork-scraper"
+			"path": "../WebScraping_Exa/icebreakers_round_robin"
 		},
 		{
-			"path": "."
+			"path": "../skool-scrape-signals"
+		},
+		{
+			"path": "../prepare-call"
+		},
+		{
+			"path": "../PV-sync-hack-airtable"
 		},
 		{
 			"path": "../../Outreach_XX"
