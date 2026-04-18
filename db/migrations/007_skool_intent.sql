@@ -1,0 +1,2 @@
+ALTER TABLE skool_signals
+  ADD COLUMN IF NOT EXISTS intent VARCHAR(20);
