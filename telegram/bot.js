@@ -96,14 +96,14 @@ async function handleSkoolCallback(cb) {
   if (action === 'good') {
     await saveSkoolFeedback(postId, 'good');
     await answerCallback(cb.id, 'Good lead saved');
-    await removeButtons(chatId, messageId);
+    try { await removeButtons(chatId, messageId); } catch {}
     console.log(`[bot] skool good — ${postId}`);
     await sendNextPending(chatId, threadId, postId);
   }
 
   if (action === 'skip') {
     await answerCallback(cb.id, 'Skipped');
-    await removeButtons(chatId, messageId);
+    try { await removeButtons(chatId, messageId); } catch {}
     await sendNextPending(chatId, threadId, postId);
   }
 
@@ -365,18 +365,19 @@ async function handleMessage(msg) {
   waitingForReason.delete(userId);
 
   if (waiting.type === 'skool') {
-    const { postId, jobMessageId, questionMessageId, chatId } = waiting;
+    const { postId, jobMessageId, questionMessageId, chatId, threadId } = waiting;
     await saveSkoolFeedback(postId, 'bad', reason);
     await removeButtons(chatId, jobMessageId);
-    await deleteMessage(chatId, questionMessageId);
-    await deleteMessage(chatId, msg.message_id);
+    try { await deleteMessage(chatId, questionMessageId); } catch {}
+    try { await deleteMessage(chatId, msg.message_id); } catch {}
     console.log(`[bot] skool bad (${reason.substring(0, 60)}) — ${postId}`);
+    await sendNextPending(chatId, threadId, postId);
   } else {
     const { jobId, jobMessageId, questionMessageId, chatId } = waiting;
     await saveFeedback(jobId, 'bad', reason);
-    await deleteMessage(chatId, jobMessageId);
-    await deleteMessage(chatId, questionMessageId);
-    await deleteMessage(chatId, msg.message_id);
+    try { await deleteMessage(chatId, jobMessageId); } catch {}
+    try { await deleteMessage(chatId, questionMessageId); } catch {}
+    try { await deleteMessage(chatId, msg.message_id); } catch {}
     console.log(`[bot] bad (${reason.substring(0, 60)}) — ${jobId}`);
   }
 }
