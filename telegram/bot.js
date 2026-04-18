@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
-import { saveFeedback, saveSkoolFeedback, saveOutreachAction, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact } from '../db/client.js';
+import { saveFeedback, saveSkoolFeedback, saveOutreachAction, getPendingSkoolSignals, addToBlacklist, getSkoolSignalContact, getRecentJobs, getLastScrapeTime } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
 import { enrichPending } from '../pipeline/enrich.js';
@@ -332,6 +332,7 @@ async function handleMessage(msg) {
       '/upwork_start — мониторинг каждые 20 мин\n' +
       '/upwork_stop — остановить мониторинг\n' +
       '/upwork_status — статус pipeline\n' +
+      '/upwork_jobs [N] — вакансии из DB за N часов без реакции (дефолт 3)\n' +
       '\n' +
       'SKOOL\n' +
       '/skool_run — скрейп + classify\n' +
@@ -343,18 +344,44 @@ async function handleMessage(msg) {
 
   if (text.startsWith('/upwork_status')) {
     const monitoring = cronJob ? 'ON' : 'OFF';
-    const last = lastRunAt ? lastRunAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'не было';
-    const next = cronJob ? ` Следующий в ${nextRunTime()}.` : '';
+    const next = cronJob ? `\nСледующий: ${nextRunTime()}` : '';
     console.log(`[cmd] upwork_status — monitoring=${monitoring} runs=${runCount}`);
-    await reply(chatId, threadId,
-      `Мониторинг: ${monitoring}\nПоследний запуск: ${last}\nЗапусков за сессию: ${runCount}${next}`
-    );
+    try {
+      const lastDb = await getLastScrapeTime();
+      const lastStr = lastDb
+        ? lastDb.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : 'нет данных';
+      await reply(chatId, threadId,
+        `Мониторинг: ${monitoring}\nПоследний скрейп: ${lastStr}\nЗапусков за сессию: ${runCount}${next}\n\n/upwork_jobs — показать последние вакансии из DB`
+      );
+    } catch (e) {
+      await reply(chatId, threadId, `Мониторинг: ${monitoring}, запусков: ${runCount}${next}`);
+    }
     return;
   }
 
   if (text.startsWith('/upwork_run')) {
     console.log(`[cmd] upwork_run — age=120`);
     await runPipeline(chatId, threadId, 120);
+    return;
+  }
+
+  if (text.startsWith('/upwork_jobs')) {
+    const arg = text.split(/\s+/)[1];
+    const hours = Math.min(parseInt(arg) || 3, 24);
+    console.log(`[cmd] upwork_jobs — hours=${hours}`);
+    try {
+      const jobs = await getRecentJobs(hours, 10);
+      if (!jobs.length) {
+        await reply(chatId, threadId, `За последние ${hours}ч вакансий без реакции нет.`);
+        return;
+      }
+      await reply(chatId, threadId, `Вакансии за ${hours}ч без реакции: ${jobs.length}`);
+      await notifyNewJobs(jobs);
+    } catch (e) {
+      console.error(`[cmd] upwork_jobs error:`, e.message);
+      await reply(chatId, threadId, `Ошибка: ${e.message}`);
+    }
     return;
   }
 

@@ -200,6 +200,33 @@ export async function getTopJobs(limit = 50, filters = {}) {
   return rows;
 }
 
+export async function getRecentJobs(hours = 3, limit = 10) {
+  const { rows } = await pool.query(
+    `SELECT j.id, j.title, j.url, j.type, j.hourly_min, j.hourly_max, j.fixed_budget,
+            j.client_country, j.client_score, j.client_total_spend, j.client_total_jobs,
+            j.client_hire_rate, j.client_payment_verified, j.level, j.category, j.skills,
+            j.total_applicants, j.ts_publish, j.scraped_at,
+            e.overall_score, e.llm_reasoning, e.llm_result, e.filter_result,
+            j.description
+     FROM jobs j
+     LEFT JOIN job_enrichments e ON j.id = e.job_id
+     LEFT JOIN job_feedback f ON j.id = f.job_id
+     WHERE j.scraped_at >= NOW() - ($1 || ' hours')::INTERVAL
+       AND f.job_id IS NULL
+     ORDER BY e.overall_score DESC NULLS LAST, j.scraped_at DESC
+     LIMIT $2`,
+    [hours, limit]
+  );
+  return rows;
+}
+
+export async function getLastScrapeTime() {
+  const { rows } = await pool.query(
+    `SELECT finished_at FROM scrape_runs WHERE status = 'succeeded' ORDER BY finished_at DESC LIMIT 1`
+  );
+  return rows[0]?.finished_at ?? null;
+}
+
 export async function markNotified(jobIds, channel = 'telegram') {
   if (!jobIds.length) return;
   const values = jobIds.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(', ');
