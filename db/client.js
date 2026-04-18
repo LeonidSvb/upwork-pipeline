@@ -244,3 +244,10 @@ export async function getJobById(id) {
   );
   return rows[0] || null;
 }
+
+export async function saveSkoolFeedback(postId, feedback, reason = null) {
+  await pool.query(
+    `UPDATE skool_signals SET feedback = $1, feedback_reason = $2, feedback_at = NOW() WHERE post_id = $3`,
+    [feedback, reason, postId]
+  );
+}

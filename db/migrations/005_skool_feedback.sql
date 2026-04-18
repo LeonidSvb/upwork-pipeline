@@ -1,0 +1,4 @@
+ALTER TABLE skool_signals
+  ADD COLUMN IF NOT EXISTS feedback        VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS feedback_reason TEXT,
+  ADD COLUMN IF NOT EXISTS feedback_at     TIMESTAMPTZ;

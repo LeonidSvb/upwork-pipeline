@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
-import { saveFeedback } from '../db/client.js';
+import { saveFeedback, saveSkoolFeedback } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
 import { enrichPending } from '../pipeline/enrich.js';
@@ -52,8 +52,31 @@ async function sendMessage(chatId, threadId, text) {
   return res.result?.message_id;
 }
 
+async function handleSkoolCallback(cb) {
+  const [, action, postId] = cb.data.split(':');
+  const chatId = cb.message.chat.id;
+  const messageId = cb.message.message_id;
+  const threadId = cb.message.message_thread_id;
+  const userId = cb.from.id;
+
+  if (action === 'good') {
+    await saveSkoolFeedback(postId, 'good');
+    await answerCallback(cb.id, 'Сохранено');
+    await removeButtons(chatId, messageId);
+    console.log(`[bot] skool good — ${postId}`);
+  }
+
+  if (action === 'bad') {
+    await answerCallback(cb.id);
+    const qId = await sendMessage(chatId, threadId, 'Почему не релевантно? Одним сообщением:');
+    waitingForReason.set(userId, { type: 'skool', postId, jobMessageId: messageId, questionMessageId: qId, chatId, threadId });
+    console.log(`[bot] skool waiting for reason — ${postId}`);
+  }
+}
+
 async function handleCallback(cb) {
   const data = cb.data;
+  if (data?.startsWith('sk:')) { await handleSkoolCallback(cb); return; }
   if (!data?.startsWith('fb:')) return;
 
   const [, action, jobId] = data.split(':');
@@ -235,18 +258,27 @@ async function handleMessage(msg) {
 
   if (!userId || !waitingForReason.has(userId)) return;
 
-  const { jobId, jobMessageId, questionMessageId, chatId } = waitingForReason.get(userId);
+  const waiting = waitingForReason.get(userId);
   const reason = msg.text?.trim();
   if (!reason) return;
 
   waitingForReason.delete(userId);
 
-  await saveFeedback(jobId, 'bad', reason);
-  await deleteMessage(chatId, jobMessageId);
-  await deleteMessage(chatId, questionMessageId);
-  await deleteMessage(chatId, msg.message_id);
-
-  console.log(`[bot] bad (${reason.substring(0, 60)}) — ${jobId}`);
+  if (waiting.type === 'skool') {
+    const { postId, jobMessageId, questionMessageId, chatId } = waiting;
+    await saveSkoolFeedback(postId, 'bad', reason);
+    await removeButtons(chatId, jobMessageId);
+    await deleteMessage(chatId, questionMessageId);
+    await deleteMessage(chatId, msg.message_id);
+    console.log(`[bot] skool bad (${reason.substring(0, 60)}) — ${postId}`);
+  } else {
+    const { jobId, jobMessageId, questionMessageId, chatId } = waiting;
+    await saveFeedback(jobId, 'bad', reason);
+    await deleteMessage(chatId, jobMessageId);
+    await deleteMessage(chatId, questionMessageId);
+    await deleteMessage(chatId, msg.message_id);
+    console.log(`[bot] bad (${reason.substring(0, 60)}) — ${jobId}`);
+  }
 }
 
 async function poll() {
