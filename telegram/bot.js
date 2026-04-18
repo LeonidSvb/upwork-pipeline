@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { execFile } from 'child_process';
 import { saveFeedback } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
@@ -7,6 +8,8 @@ import { getTopJobs, markNotified } from '../db/client.js';
 import { notifyNewJobs } from '../notifications/telegram.js';
 import { CONFIG } from '../config.js';
 import cron from 'node-cron';
+
+const SKOOL_DIR = new URL('../../skool-scrape-signals/', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
 
 const IDEAS_TOPIC_ID = parseInt(process.env.TG_TOPIC_IDEAS);
 
@@ -167,7 +170,8 @@ async function handleMessage(msg) {
     await reply(msg.chat.id, msg.message_thread_id,
       '/start_jobs — включить мониторинг каждые 20 мин\n' +
       '/stop_jobs — выключить мониторинг\n' +
-      '/run — разовый скрейп за последние 2 часа\n' +
+      '/run — разовый скрейп Upwork за последние 2 часа\n' +
+      '/run_skool — разовый скрейп Skool\n' +
       '/status — текущее состояние\n' +
       '/help — список команд'
     );
@@ -181,6 +185,19 @@ async function handleMessage(msg) {
     await reply(msg.chat.id, msg.message_thread_id,
       `Мониторинг: ${monitoring}\nПоследний запуск: ${last}\nЗапусков за сессию: ${runCount}${next}`
     );
+    return;
+  }
+
+  if (msg.text?.trim().startsWith('/run_skool')) {
+    await reply(msg.chat.id, msg.message_thread_id, 'Запускаю Skool pipeline...');
+    execFile('python', ['run.py'], { cwd: SKOOL_DIR }, async (err, stdout, stderr) => {
+      const out = (stdout + stderr).slice(-1000);
+      if (err) {
+        await reply(msg.chat.id, msg.message_thread_id, `Skool ошибка:\n${out}`);
+      } else {
+        await reply(msg.chat.id, msg.message_thread_id, `Skool готово:\n${out}`);
+      }
+    });
     return;
   }
 
