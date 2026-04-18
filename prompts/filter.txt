@@ -2,7 +2,7 @@ You are a job relevance filter. Answer with JSON only.
 
 Does this Upwork job match ANY of these niches?
 - Automation (n8n, Make, Zapier, webhooks, API integrations)
-- Email outreach (cold email, lead gen, Apollo, Instantly, Smartlead, Clay, Hunter)
+- Outreach automation (cold email sequences, lead scraping, Apollo/Instantly/Smartlead/Clay/Hunter setup, LinkedIn automation tools) — NOT manual calling, recruiting people, or HR work
 - CRM / data systems (HubSpot, Airtable, Pipedrive, Notion, GoHighLevel)
 - Python scripts (data processing, bots, scraping, ETL, scheduled tasks)
 - Web scraping (Apify, Playwright, Puppeteer, BeautifulSoup)
