@@ -1,54 +1,87 @@
 UPWORK PIPELINE — TODO & STATUS
 ================================
-Updated: 2026-04-16
+Updated: 2026-04-18
 
 === CURRENT STATE ===
 
-[DONE] Telegram bot (telegram/bot.js)
-  - Long-polling бот слушает updates
-  - Good/Bad кнопки на каждом джобе
-  - Bad → бот спрашивает причину → сохраняет в Supabase
-  - Роутинг: сообщения в топик IDEAS обрабатываются отдельно
+[DONE] Upwork pipeline (scrape → enrich → notify)
+  - Apify scrейпер, несколько поисков (my-searches.json)
+  - LLM enrichment через OpenRouter (filter + score)
+  - Supabase/PostgreSQL: jobs, job_enrichments, notifications, job_feedback
+  - Pre-filter по бюджету, стране, proposals
+
+[DONE] Telegram bot (telegram/bot.js) — команды /upwork_*
+  - /upwork_run — разовый скрейп за 2 часа
+  - /upwork_start / /upwork_stop — мониторинг каждые 20 мин
+  - /upwork_status — статус + время последнего скрейпа из DB
+  - /upwork_jobs [N] — вакансии из DB за N часов без реакции
+  - Кнопки: Откликнулся / Интересно / Не моё + причина
+  - Логирование: [cmd], [api] с таймингом, [poll] ошибки
+  - Lock file защита от двух инстансов
+  - Conflict backoff: ждёт 35s если другой инстанс занял polling
+  - Webhook auto-detect и очистка на старте
+
+[DONE] Skool signals pipeline (skool-scrape-signals/)
+  - Скрейпер (Python) → classify (OpenRouter Gemini Flash Lite) → Supabase
+  - Таблица skool_signals с is_signal, confidence, intent, signal_type
+  - Blacklist (skool_blacklist) — фильтрует повторные non-leads
+
+[DONE] Telegram bot — команды /skool_*
+  - /skool_run — запуск Python pipeline через execFile
+  - /skool_pending — очередь сигналов: HIGH first, кнопки Good/Skip/Bad/Blacklist
+  - /skool_status — сколько pending по confidence
+  - После Good lead → клавиатура: LinkedIn Connect / Comment / Skool DM / LinkedIn Message / Skip
+  - Действие сохраняется в skool_outreach(post_id, action, created_at)
+  - Auto-advance: после каждого действия показывает следующий сигнал
 
 [DONE] Ideas module (telegram/ideas.js)
-  - Сообщение из топика IDEAS → LLM (claude-haiku via OpenRouter)
-  - LLM возвращает: title, category, priority
-  - Сохраняет в Airtable (таблица Ideas)
-  - Отвечает в топик: "Saved / title / category | priority"
+  - Сообщение из топика IDEAS → LLM → Airtable (title, category, priority)
 
 [BLOCKED] Airtable category choices
-  - Поле category в таблице Ideas имеет choices: Category 1..7
-  - Нужно переименовать в: upwork, product, outreach, learning, business, life, other
-  - AIRTABLE_TOKEN не имеет scope schema:bases:write
-  - Airtable MCP подключен но OAuth не проходит
-  - FIX варианты:
-    A) Добавить scope schema:bases:write к токену на airtable.com/create/tokens
-    B) Переименовать вручную в Airtable UI (30 сек)
+  - Нужен scope schema:bases:write для переименования choices
+  - Быстрый фикс: переименовать вручную в Airtable UI
+
+=== НУЖНО ПРОТЕСТИРОВАТЬ В СЛЕДУЮЩЕЙ СЕССИИ ===
+
+1. /upwork_jobs — проверить что джобы приходят с кнопками
+2. /upwork_status — проверить что показывает время из DB (не in-memory)
+3. /skool_pending → Good lead → клавиатура действий → advance
+4. /skool_pending → Bad → ввод причины → advance
+5. /skool_pending → Blacklist → следующий сигнал
+6. Conflict fix — убедиться что после 35s ожидания бот берёт управление
+7. notifyNewJobs — проверить что отправлено: X/Y (реальный счётчик)
+8. Убедиться что TG_TOPIC_UPWORK задан в .env (иначе джобы идут не в топик)
+
+=== ВОЗМОЖНЫЕ СЛЕДУЮЩИЕ ФИЧИ ===
+
+- Второй Skool community (AI Automation Insiders)
+- Просмотр /skool_outreach — что уже сделано по лидам
+- /upwork_jobs фильтр по score (сейчас показывает всё без реакции)
 
 === FILES ===
 
-telegram/bot.js          — основной бот, polling, callbacks, роутинг по топикам
-telegram/ideas.js        — обработка идей: LLM + Airtable save
-db/client.js             — Supabase клиент, saveFeedback()
-docs/airtable-api-reference.md  — reference по Airtable API endpoints + IDs
-arsenal/                 — шаблоны, кейсы, cover letter формулы
-proposals/               — отправленные предложения
+telegram/bot.js          — основной бот, polling, все команды
+telegram/ideas.js        — обработка идей: LLM + Airtable
+pipeline/scrape.js       — Apify scraper runner
+pipeline/enrich.js       — LLM enrichment
+notifications/telegram.js — форматирование и отправка джобов
+db/client.js             — все DB функции (jobs, skool, feedback, outreach)
+db/migrations/           — 001..009 SQL миграции
+config.js                — фильтры, модели, notify настройки
+scraper/inputs/my-searches.json — поисковые запросы Apify
 
-=== ENV VARS NEEDED ===
+=== ENV VARS ===
 
 TELEGRAM_BOT_TOKEN
-TG_TOPIC_IDEAS          — ID топика для идей в группе
-OPENROUTER_BASE_URL
+TG_GROUP_ID
+TG_TOPIC_UPWORK
+TG_TOPIC_SKOOL
+TG_TOPIC_IDEAS
+DATABASE_URL
+APIFY_TOKEN
 OPENROUTER_API_KEY
-AIRTABLE_TOKEN          — нужен scope: data:records:write + schema:bases:write
+OPENROUTER_BASE_URL
+AIRTABLE_TOKEN
 AIRTABLE_BASE_ID
-AIRTABLE_TABLE_ID       — tblnxUOzl6OTsW4IP (Ideas)
-SUPABASE_URL
-SUPABASE_KEY
-
-=== NEXT STEPS ===
-
-1. [BLOCKER] Починить category choices в Airtable (см. выше)
-2. Проверить end-to-end: написать в топик IDEAS → запись появляется в Airtable
-3. Добавить просмотр идей: команда /ideas в боте или отдельный endpoint
-4. Возможно: Airtable view для идей с фильтрами по category/priority/status
+AIRTABLE_TABLE_ID
+SKOOL_COMMUNITY_NAME
