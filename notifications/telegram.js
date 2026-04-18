@@ -81,31 +81,48 @@ export async function sendMessage(text, options = {}) {
     body.message_thread_id = TOPIC_UPWORK;
   }
 
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  console.log(`[telegram] → sendMessage chat=${chatId} thread=${body.message_thread_id ?? 'none'}`);
 
-  const data = await res.json();
-  if (!data.ok) throw new Error(`Telegram error: ${data.description}`);
-  return data.result;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(`Telegram error: ${data.description}`);
+    console.log(`[telegram] ← ok msgId=${data.result?.message_id}`);
+    return data.result;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Telegram sendMessage timeout');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function notifyNewJobs(jobs) {
-  if (!jobs.length) return;
+  if (!jobs.length) return 0;
 
   await sendMessage(`<b>Upwork: ${jobs.length} new relevant jobs</b>`);
 
+  let sent = 0;
+  const notifiedIds = [];
   for (const job of jobs) {
     try {
       await sendMessage(formatJob(job), { reply_markup: jobButtons(job.id) });
+      notifiedIds.push(job.id);
+      sent++;
       await new Promise(r => setTimeout(r, 300));
     } catch (err) {
       console.error(`[telegram] Failed to send job ${job.id}:`, err.message);
     }
   }
 
-  await markNotified(jobs.map(j => j.id));
-  console.log(`[telegram] Sent ${jobs.length} job(s)`);
+  if (notifiedIds.length) await markNotified(notifiedIds);
+  console.log(`[telegram] Sent ${sent}/${jobs.length} job(s)`);
+  return sent;
 }

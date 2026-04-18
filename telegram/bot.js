@@ -298,9 +298,9 @@ async function runPipeline(chatId, threadId, age = 120, silent = false) {
     if (totalNew > 0) await enrichPending(Math.min(totalNew + 10, 100));
     const jobs = await getTopJobs(20, CONFIG.notify);
     if (jobs.length > 0) {
-      await notifyNewJobs(jobs);
+      const sent = await notifyNewJobs(jobs);
       const next = cronJob ? ` Следующий в ${nextRunTime()}` : '';
-      await reply(chatId, threadId, `Готово. Новых: ${totalNew}, отправлено: ${jobs.length}.${next}`);
+      await reply(chatId, threadId, `Готово. Новых: ${totalNew}, отправлено: ${sent}/${jobs.length}.${next}`);
     } else {
       const next = cronJob ? ` Следующий запуск в ${nextRunTime()}.` : '';
       await reply(chatId, threadId, `Запуск #${runCount} — подходящих нет.${next}`);
