@@ -1,0 +1,25 @@
+Score this Upwork job for a developer with a LOW rating (new account, few reviews).
+Skills: web scraping (Node/Python/Apify), automation (n8n/Make/Zapier), CRM/Airtable, API integrations, full-stack JS, HTML landing pages, outreach tools.
+
+Context: low rating means experienced clients with high standards will ignore the application.
+Best opportunities: new/inexperienced client, small quick task, live demo possible, few proposals.
+
+{{job_block}}
+
+Scoring rules:
+- Boost if client has no history (jobs=0, spend=0)
+- Boost if task can be demoed in <2 hours
+- Boost if proposals < 10
+- Boost if payment verified and rating > 4.5
+- Penalize if client spent >$50k and has many hires
+- Penalize if job requires proven track record or portfolio
+
+Return ONLY valid JSON:
+{
+  "overall_score": 0-10,
+  "quick_demo_possible": true or false,
+  "newcomer_friendly": true or false,
+  "reasoning": "2 sentence max",
+  "rejection_reasons": [],
+  "tags": ["tag1", "tag2"]
+}

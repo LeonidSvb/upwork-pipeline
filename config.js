@@ -1,31 +1,29 @@
-// Central config — edit here to change scraping and filtering behavior
 export const CONFIG = {
-  // Prompt file to use for LLM enrichment (filename without .txt in prompts/ folder)
-  enrichPrompt: 'low-rating',
+  // Stage 1 — relevance filter (cheap/fast model)
+  filterModel:  'google/gemini-2.5-flash-lite',
+  filterPrompt: 'filter',
 
+  // Stage 2 — detailed scoring (smarter model, only relevant jobs)
+  scoreModel:   'google/gemini-2.5-flash-lite',
+  scorePrompt:  'score',
 
-  // Countries to exclude (client location) — case-insensitive match
+  // Countries to exclude (client location)
   excludeCountries: [
-    'India',
-    'Pakistan',
-    'Nigeria',
-    'Bangladesh',
-    'Kenya',
-    'Philippines',
+    'India', 'Pakistan', 'Nigeria', 'Bangladesh', 'Kenya', 'Philippines',
   ],
 
-  // Pre-filter before saving to DB
+  // Pre-filter before saving to DB (Apify level)
   preFilter: {
-    fixedMin: 50,       // fixed price jobs below this are skipped
-    hourlyMin: 10,      // hourly jobs below this are skipped
-    proposalsMax: 30,   // jobs with more than this many proposals are skipped
+    fixedMin:     50,
+    hourlyMin:    10,
+    proposalsMax: 30,
   },
 
   // Notification filters (Telegram)
   notify: {
-    minScore: 6,
+    minScore:     6,
     maxProposals: 15,
-    hourlyMin: 15,
-    hourlyMax: 80,
+    hourlyMin:    15,
+    hourlyMax:    80,
   },
 };

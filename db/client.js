@@ -124,32 +124,26 @@ export async function getJobsToEnrich(limit = 20) {
 }
 
 export async function saveEnrichment(jobId, enrichment) {
-  const { model, ...rest } = enrichment;
   await pool.query(
     `INSERT INTO job_enrichments (
-      job_id, model,
-      relevance_score, budget_score, client_quality_score, overall_score,
-      is_relevant, is_good_client, is_budget_ok, has_clear_requirements, is_long_term,
-      primary_category, tags, rejection_reasons, llm_reasoning, llm_raw
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      job_id, model, overall_score, llm_result, filter_result, llm_reasoning, llm_raw
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7)
     ON CONFLICT (job_id) DO UPDATE SET
-      enriched_at = NOW(),
-      model = EXCLUDED.model,
-      overall_score = EXCLUDED.overall_score,
-      is_relevant = EXCLUDED.is_relevant,
-      llm_raw = EXCLUDED.llm_raw`,
+      enriched_at    = NOW(),
+      model          = EXCLUDED.model,
+      overall_score  = EXCLUDED.overall_score,
+      llm_result     = EXCLUDED.llm_result,
+      filter_result  = EXCLUDED.filter_result,
+      llm_reasoning  = EXCLUDED.llm_reasoning,
+      llm_raw        = EXCLUDED.llm_raw`,
     [
-      jobId, model,
-      enrichment.relevance_score, enrichment.budget_score,
-      enrichment.client_quality_score, enrichment.overall_score,
-      enrichment.is_relevant, enrichment.is_good_client,
-      enrichment.is_budget_ok, enrichment.has_clear_requirements,
-      enrichment.is_long_term,
-      enrichment.primary_category,
-      enrichment.tags,
-      enrichment.rejection_reasons,
+      jobId,
+      enrichment.model,
+      enrichment.overall_score,
+      JSON.stringify(enrichment.llm_result),
+      JSON.stringify(enrichment.filter_result),
       enrichment.llm_reasoning,
-      JSON.stringify(rest),
+      JSON.stringify(enrichment),
     ]
   );
 }
@@ -186,7 +180,7 @@ export async function getTopJobs(limit = 50, filters = {}) {
             j.client_country, j.client_score, j.client_total_spend, j.client_total_jobs,
             j.client_hire_rate, j.client_payment_verified, j.level, j.category, j.skills,
             j.total_applicants, j.ts_publish, j.scraped_at,
-            e.overall_score, e.is_relevant, e.primary_category, e.tags, e.llm_reasoning, e.llm_raw
+            e.overall_score, e.llm_result, e.filter_result, e.llm_reasoning
      FROM jobs j
      JOIN job_enrichments e ON j.id = e.job_id
      LEFT JOIN notifications n ON j.id = n.job_id
@@ -231,8 +225,9 @@ export async function getDailyStats() {
       (SELECT COUNT(*) FROM job_enrichments WHERE enriched_at >= NOW() - INTERVAL '24 hours') AS enriched_24h,
       (SELECT COUNT(*) FROM notifications WHERE sent_at >= NOW() - INTERVAL '24 hours') AS notified_24h,
       (SELECT COUNT(*) FROM job_feedback WHERE created_at >= NOW() - INTERVAL '24 hours') AS feedback_24h,
-      (SELECT COUNT(*) FROM job_feedback WHERE feedback = 'good' AND created_at >= NOW() - INTERVAL '24 hours') AS good_24h,
+      (SELECT COUNT(*) FROM job_feedback WHERE feedback IN ('good','applied') AND created_at >= NOW() - INTERVAL '24 hours') AS good_24h,
       (SELECT COUNT(*) FROM job_feedback WHERE feedback = 'bad' AND created_at >= NOW() - INTERVAL '24 hours') AS bad_24h,
+      (SELECT COUNT(*) FROM job_feedback WHERE feedback = 'applied' AND created_at >= NOW() - INTERVAL '24 hours') AS applied_24h,
       (SELECT MAX(finished_at) FROM scrape_runs WHERE status = 'succeeded') AS last_run,
       (SELECT COUNT(*) FROM scrape_runs WHERE status = 'failed' AND finished_at >= NOW() - INTERVAL '24 hours') AS failed_runs_24h
   `);

@@ -1,0 +1,20 @@
+You are a job relevance filter. Answer with JSON only.
+
+Does this Upwork job match ANY of these niches?
+- Automation (n8n, Make, Zapier, webhooks, API integrations)
+- Email outreach (cold email, lead gen, Apollo, Instantly, Smartlead, Clay, Hunter)
+- CRM / data systems (HubSpot, Airtable, Pipedrive, Notion, GoHighLevel)
+- Python scripts (data processing, bots, scraping, ETL, scheduled tasks)
+- Web scraping (Apify, Playwright, Puppeteer, BeautifulSoup)
+- Web apps / landing pages (HTML, JS, React, simple sites)
+
+NOT a match: SEO, content writing, graphic design, video editing, paid ads (Google/Meta), mobile apps, machine learning, Salesforce, TikTok, Shopify themes.
+
+{{job_block}}
+
+Return ONLY valid JSON:
+{
+  "relevant": true or false,
+  "niche": "automation|outreach|crm|scraping|python|web|none",
+  "reason": "one sentence"
+}
