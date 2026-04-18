@@ -1,24 +1,34 @@
-Score this Upwork job for a developer with a LOW rating (new account, few reviews).
+Score this Upwork job for a developer with a LOW Upwork rating trying to rebuild reputation.
 Skills: web scraping (Node/Python/Apify), automation (n8n/Make/Zapier), CRM/Airtable, API integrations, full-stack JS, HTML landing pages, outreach tools.
 
-Context: low rating means experienced clients with high standards will ignore the application.
-Best opportunities: new/inexperienced client, small quick task, live demo possible, few proposals.
+Priority: getting hired > maximizing pay. Short deliverable jobs where a live demo is possible are ideal.
 
 {{job_block}}
 
-Scoring rules:
-- Boost if client has no history (jobs=0, spend=0)
-- Boost if task can be demoed in <2 hours
-- Boost if proposals < 10
-- Boost if payment verified and rating > 4.5
-- Penalize if client spent >$50k and has many hires
-- Penalize if job requires proven track record or portfolio
+Score using these rules (start at 5, apply adjustments, clamp to 0-10):
+
+POSITIVE:
++3 if a live demo can be built in under 2 hours (specific small task, script, landing page, form, etc.)
++2 if requirements are clear and specific (list of tasks, defined output)
++2 if proposals count is under 5
++1 if proposals count is 5-15
++1 if client has at least 1 previous hire (shows they are serious)
++1 if this is a one-time project (not ongoing)
+
+NEGATIVE:
+-3 if job is a VA, SDR, full-time hire, or employee-style role (not a project)
+-2 if job is posted by an agency (not a direct client)
+-2 if long-term or ongoing commitment is required
+-2 if requirements are vague ("need AI expert", "innovative solutions", no specific deliverable)
+-1 if budget seems low for the described scope
 
 Return ONLY valid JSON:
 {
   "overall_score": 0-10,
   "quick_demo_possible": true or false,
-  "newcomer_friendly": true or false,
+  "one_time_project": true or false,
+  "clear_requirements": true or false,
+  "is_agency": true or false,
   "reasoning": "2 sentence max",
   "rejection_reasons": [],
   "tags": ["tag1", "tag2"]
