@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'child_process';
-import { saveFeedback, saveSkoolFeedback } from '../db/client.js';
+import { saveFeedback, saveSkoolFeedback, getPendingSkoolSignals } from '../db/client.js';
 import { handleIdea } from './ideas.js';
 import { runScrapeAll } from '../pipeline/scrape.js';
 import { enrichPending } from '../pipeline/enrich.js';
@@ -52,8 +52,41 @@ async function sendMessage(chatId, threadId, text) {
   return res.result?.message_id;
 }
 
+async function sendSkoolSignalMessage(chatId, threadId, s, pos, total) {
+  const contact = (() => { try { return typeof s.contact === 'string' ? JSON.parse(s.contact) : (s.contact || {}); } catch { return {}; } })();
+  const conf = s.confidence === 'high' ? 'HIGH' : 'MED';
+  const intent = (s.intent || '').replace('_', ' ');
+  const stype = (s.signal_type || 'signal').replace(/_/g, ' ');
+  const name = contact.name || 'Unknown';
+  const linkedin = contact.linkedin || '';
+  const namePart = linkedin ? `<a href="${linkedin}">${name}</a>` : name;
+  const postLink = s.post_url ? ` | <a href="${s.post_url}">Open post</a>` : '';
+
+  const text = [
+    `[${pos}/${total}] [${conf}] ${stype} | ${intent} | ${s.community || 'skool'}`,
+    `<b>${s.post_title || 'No title'}</b>`,
+    `${namePart} (${contact.source || 'post'})${postLink}`,
+    ``,
+    `<i>"${(s.signal_text || '').slice(0, 200)}"</i>`,
+    ``,
+    `Why: ${s.reason || ''}`,
+  ].join('\n');
+
+  const keyboard = JSON.stringify({ inline_keyboard: [[
+    { text: 'Good lead', callback_data: `sk:good:${s.post_id}` },
+    { text: 'Skip', callback_data: `sk:skip:${s.post_id}` },
+    { text: 'Not relevant', callback_data: `sk:bad:${s.post_id}` },
+  ]]});
+
+  const body = { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: keyboard };
+  if (threadId) body.message_thread_id = threadId;
+  await api('sendMessage', body);
+}
+
 async function handleSkoolCallback(cb) {
-  const [, action, postId] = cb.data.split(':');
+  const parts = cb.data.split(':');
+  const action = parts[1];
+  const postId = parts.slice(2).join(':');
   const chatId = cb.message.chat.id;
   const messageId = cb.message.message_id;
   const threadId = cb.message.message_thread_id;
@@ -61,9 +94,16 @@ async function handleSkoolCallback(cb) {
 
   if (action === 'good') {
     await saveSkoolFeedback(postId, 'good');
-    await answerCallback(cb.id, 'Сохранено');
+    await answerCallback(cb.id, 'Good lead saved');
     await removeButtons(chatId, messageId);
     console.log(`[bot] skool good — ${postId}`);
+    await sendNextPending(chatId, threadId, postId);
+  }
+
+  if (action === 'skip') {
+    await answerCallback(cb.id, 'Skipped');
+    await removeButtons(chatId, messageId);
+    await sendNextPending(chatId, threadId, postId);
   }
 
   if (action === 'bad') {
@@ -71,6 +111,23 @@ async function handleSkoolCallback(cb) {
     const qId = await sendMessage(chatId, threadId, 'Почему не релевантно? Одним сообщением:');
     waitingForReason.set(userId, { type: 'skool', postId, jobMessageId: messageId, questionMessageId: qId, chatId, threadId });
     console.log(`[bot] skool waiting for reason — ${postId}`);
+  }
+}
+
+async function sendNextPending(chatId, threadId, justDonePostId) {
+  try {
+    const all = await getPendingSkoolSignals();
+    const remaining = all.filter(s => s.post_id !== justDonePostId);
+    if (!remaining.length) {
+      await reply(chatId, threadId, 'Очередь разобрана. Новых сигналов нет.');
+      return;
+    }
+    const next = remaining[0];
+    const pos = 1;
+    const total = remaining.length;
+    await sendSkoolSignalMessage(chatId, threadId, next, pos, total);
+  } catch (e) {
+    console.error('[bot] sendNextPending error:', e.message);
   }
 }
 
@@ -189,70 +246,112 @@ async function handleMessage(msg) {
     return;
   }
 
-  if (msg.text?.trim().startsWith('/help')) {
-    await reply(msg.chat.id, msg.message_thread_id,
-      '/start_jobs — включить мониторинг каждые 20 мин\n' +
-      '/stop_jobs — выключить мониторинг\n' +
-      '/run — разовый скрейп Upwork за последние 2 часа\n' +
-      '/run_skool — разовый скрейп Skool\n' +
-      '/status — текущее состояние\n' +
-      '/help — список команд'
+  const text = msg.text?.trim() || '';
+  const chatId = msg.chat.id;
+  const threadId = msg.message_thread_id;
+
+  if (text.startsWith('/help')) {
+    await reply(chatId, threadId,
+      'UPWORK\n' +
+      '/upwork_run — разовый скрейп за 2 часа\n' +
+      '/upwork_start — мониторинг каждые 20 мин\n' +
+      '/upwork_stop — остановить мониторинг\n' +
+      '/upwork_status — статус pipeline\n' +
+      '\n' +
+      'SKOOL\n' +
+      '/skool_run — скрейп + classify\n' +
+      '/skool_pending — очередь сигналов без фидбека\n' +
+      '/skool_status — статистика сигналов'
     );
     return;
   }
 
-  if (msg.text?.trim().startsWith('/status')) {
+  if (text.startsWith('/upwork_status')) {
     const monitoring = cronJob ? 'ON' : 'OFF';
     const last = lastRunAt ? lastRunAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'не было';
     const next = cronJob ? ` Следующий в ${nextRunTime()}.` : '';
-    await reply(msg.chat.id, msg.message_thread_id,
+    await reply(chatId, threadId,
       `Мониторинг: ${monitoring}\nПоследний запуск: ${last}\nЗапусков за сессию: ${runCount}${next}`
     );
     return;
   }
 
-  if (msg.text?.trim().startsWith('/run_skool')) {
-    await reply(msg.chat.id, msg.message_thread_id, 'Запускаю Skool pipeline...');
-    execFile('python', ['run.py'], { cwd: SKOOL_DIR }, async (err, stdout, stderr) => {
-      const out = (stdout + stderr).slice(-1000);
-      if (err) {
-        await reply(msg.chat.id, msg.message_thread_id, `Skool ошибка:\n${out}`);
-      } else {
-        await reply(msg.chat.id, msg.message_thread_id, `Skool готово:\n${out}`);
-      }
-    });
+  if (text.startsWith('/upwork_run')) {
+    await runPipeline(chatId, threadId, 120);
     return;
   }
 
-  if (msg.text?.trim().startsWith('/run')) {
-    await runPipeline(msg.chat.id, msg.message_thread_id, 120);
-    return;
-  }
-
-  if (msg.text?.trim().startsWith('/start_jobs')) {
+  if (text.startsWith('/upwork_start')) {
     if (cronJob) {
-      await reply(msg.chat.id, msg.message_thread_id, `Мониторинг уже запущен. Следующий запуск в ${nextRunTime()}.`);
+      await reply(chatId, threadId, `Мониторинг уже запущен. Следующий запуск в ${nextRunTime()}.`);
       return;
     }
-    monitorChatId = msg.chat.id;
-    monitorThreadId = msg.message_thread_id;
+    monitorChatId = chatId;
+    monitorThreadId = threadId;
     cronJob = cron.schedule('*/20 * * * *', () => {
       runPipeline(monitorChatId, monitorThreadId, 30).catch(console.error);
     });
-    await reply(msg.chat.id, msg.message_thread_id, `Мониторинг включен — каждые 20 мин. Следующий авто-запуск в ${nextRunTime()}. Запускаю первый скрейп...`);
-    await runPipeline(msg.chat.id, msg.message_thread_id, 30);
+    await reply(chatId, threadId, `Мониторинг включен — каждые 20 мин. Следующий авто-запуск в ${nextRunTime()}. Запускаю первый скрейп...`);
+    await runPipeline(chatId, threadId, 30);
     return;
   }
 
-  if (msg.text?.trim().startsWith('/stop_jobs')) {
+  if (text.startsWith('/upwork_stop')) {
     if (!cronJob) {
-      await reply(msg.chat.id, msg.message_thread_id, 'Мониторинг не был запущен.');
+      await reply(chatId, threadId, 'Мониторинг не был запущен.');
       return;
     }
     cronJob.stop();
     cronJob = null;
-    await reply(msg.chat.id, msg.message_thread_id, `Мониторинг остановлен. Было запусков: ${runCount}.`);
+    await reply(chatId, threadId, `Мониторинг остановлен. Было запусков: ${runCount}.`);
     runCount = 0;
+    return;
+  }
+
+  if (text.startsWith('/skool_run')) {
+    await reply(chatId, threadId, 'Запускаю Skool pipeline...');
+    execFile('python', ['run.py'], { cwd: SKOOL_DIR }, async (err, stdout, stderr) => {
+      const out = (stdout + stderr).slice(-1000);
+      await reply(chatId, threadId, err ? `Skool ошибка:\n${out}` : `Skool готово:\n${out}`);
+    });
+    return;
+  }
+
+  if (text.startsWith('/skool_status')) {
+    try {
+      const all = await getPendingSkoolSignals();
+      const high = all.filter(s => s.confidence === 'high').length;
+      const med  = all.filter(s => s.confidence === 'medium').length;
+      await reply(chatId, threadId,
+        `Skool — ожидают фидбека: ${all.length}\n  HIGH: ${high}\n  MED: ${med}\n\n` +
+        `Запусти /skool_pending чтобы пройтись`
+      );
+    } catch (e) {
+      await reply(chatId, threadId, `Ошибка: ${e.message}`);
+    }
+    return;
+  }
+
+  if (text.startsWith('/skool_pending')) {
+    try {
+      const all = await getPendingSkoolSignals();
+      if (!all.length) {
+        await reply(chatId, threadId, 'Нет сигналов без фидбека.');
+        return;
+      }
+      const highCount = all.filter(s => s.confidence === 'high').length;
+      const useHighOnly = all.length > 10 && highCount > 0;
+      const queue = useHighOnly ? all.filter(s => s.confidence === 'high') : all;
+
+      if (useHighOnly) {
+        await reply(chatId, threadId, `Всего ${all.length} pending. Показываю только HIGH (${highCount}). Для всех — /skool_pending all`);
+      }
+
+      const s = queue[0];
+      await sendSkoolSignalMessage(chatId, threadId, s, 1, queue.length);
+    } catch (e) {
+      await reply(chatId, threadId, `Ошибка: ${e.message}`);
+    }
     return;
   }
 

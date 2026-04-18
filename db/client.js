@@ -251,3 +251,29 @@ export async function saveSkoolFeedback(postId, feedback, reason = null) {
     [feedback, reason, postId]
   );
 }
+
+export async function getPendingSkoolSignals({ community = null, confidenceOnly = false } = {}) {
+  const conditions = [`is_signal = TRUE`, `notified = TRUE`, `feedback IS NULL`];
+  const params = [];
+
+  if (community) {
+    params.push(community);
+    conditions.push(`community = $${params.length}`);
+  }
+  if (confidenceOnly) {
+    conditions.push(`confidence = 'high'`);
+  } else {
+    conditions.push(`confidence IN ('high', 'medium')`);
+  }
+
+  const where = conditions.join(' AND ');
+  const { rows } = await pool.query(
+    `SELECT post_id, post_url, post_title, category, community, confidence, intent,
+            signal_type, signal_text, contact, reason
+     FROM skool_signals
+     WHERE ${where}
+     ORDER BY CASE confidence WHEN 'high' THEN 0 ELSE 1 END, created_at DESC`,
+    params
+  );
+  return rows;
+}
