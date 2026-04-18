@@ -325,6 +325,7 @@ async function handleMessage(msg) {
   const threadId = msg.message_thread_id;
 
   if (text.startsWith('/help')) {
+    console.log(`[cmd] help from ${msg.from?.username || msg.from?.id}`);
     await reply(chatId, threadId,
       'UPWORK\n' +
       '/upwork_run — разовый скрейп за 2 часа\n' +
@@ -344,6 +345,7 @@ async function handleMessage(msg) {
     const monitoring = cronJob ? 'ON' : 'OFF';
     const last = lastRunAt ? lastRunAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 'не было';
     const next = cronJob ? ` Следующий в ${nextRunTime()}.` : '';
+    console.log(`[cmd] upwork_status — monitoring=${monitoring} runs=${runCount}`);
     await reply(chatId, threadId,
       `Мониторинг: ${monitoring}\nПоследний запуск: ${last}\nЗапусков за сессию: ${runCount}${next}`
     );
@@ -351,11 +353,13 @@ async function handleMessage(msg) {
   }
 
   if (text.startsWith('/upwork_run')) {
+    console.log(`[cmd] upwork_run — age=120`);
     await runPipeline(chatId, threadId, 120);
     return;
   }
 
   if (text.startsWith('/upwork_start')) {
+    console.log(`[cmd] upwork_start — cronJob=${!!cronJob}`);
     if (cronJob) {
       await reply(chatId, threadId, `Мониторинг уже запущен. Следующий запуск в ${nextRunTime()}.`);
       return;
@@ -371,6 +375,7 @@ async function handleMessage(msg) {
   }
 
   if (text.startsWith('/upwork_stop')) {
+    console.log(`[cmd] upwork_stop`);
     if (!cronJob) {
       await reply(chatId, threadId, 'Мониторинг не был запущен.');
       return;
@@ -383,15 +388,18 @@ async function handleMessage(msg) {
   }
 
   if (text.startsWith('/skool_run')) {
+    console.log(`[cmd] skool_run`);
     await reply(chatId, threadId, 'Запускаю Skool pipeline...');
     execFile('python', ['run.py'], { cwd: SKOOL_DIR }, async (err, stdout, stderr) => {
       const out = (stdout + stderr).slice(-1000);
+      if (err) console.error(`[cmd] skool_run failed: ${err.message}`);
       await reply(chatId, threadId, err ? `Skool ошибка:\n${out}` : `Skool готово:\n${out}`);
     });
     return;
   }
 
   if (text.startsWith('/skool_status')) {
+    console.log(`[cmd] skool_status`);
     try {
       const all = await getPendingSkoolSignals();
       const high = all.filter(s => s.confidence === 'high').length;
@@ -401,14 +409,17 @@ async function handleMessage(msg) {
         `Запусти /skool_pending чтобы пройтись`
       );
     } catch (e) {
+      console.error(`[cmd] skool_status error:`, e.message);
       await reply(chatId, threadId, `Ошибка: ${e.message}`);
     }
     return;
   }
 
   if (text.startsWith('/skool_pending')) {
+    console.log(`[cmd] skool_pending`);
     try {
       const all = await getPendingSkoolSignals();
+      console.log(`[cmd] skool_pending — found ${all.length} signals`);
       if (!all.length) {
         await reply(chatId, threadId, 'Нет сигналов без фидбека.');
         return;
@@ -422,8 +433,11 @@ async function handleMessage(msg) {
       }
 
       const s = queue[0];
+      console.log(`[cmd] skool_pending — sending signal ${s.post_id}`);
       await sendSkoolSignalMessage(chatId, threadId, s, 1, queue.length);
+      console.log(`[cmd] skool_pending — done`);
     } catch (e) {
+      console.error(`[cmd] skool_pending error:`, e.message, e.stack?.split('\n')[1]);
       await reply(chatId, threadId, `Ошибка: ${e.message}`);
     }
     return;

@@ -11,8 +11,8 @@ const searches = JSON.parse(readFileSync(resolve(__dirname, '../scraper/inputs/m
 export async function runScrapeAll(age = null) {
   const results = [];
 
-  for (const { name, input } of searches) {
-    if (age) input.age = age;
+  for (const { name, input: baseInput } of searches) {
+    const input = age ? { ...baseInput, age } : { ...baseInput };
     console.log(`\n[pipeline] Scraping: ${name}`);
     const startedAt = new Date();
     let runResult;
