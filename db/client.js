@@ -261,6 +261,28 @@ export async function getDailyStats() {
   return rows[0];
 }
 
+export async function purgeOldJobs(days = 3) {
+  const { rowCount: enrichDel } = await pool.query(
+    `DELETE FROM job_enrichments WHERE job_id IN (
+       SELECT id FROM jobs WHERE scraped_at < NOW() - ($1 || ' days')::INTERVAL
+     )`, [days]
+  );
+  await pool.query(
+    `DELETE FROM notifications WHERE job_id IN (
+       SELECT id FROM jobs WHERE scraped_at < NOW() - ($1 || ' days')::INTERVAL
+     )`, [days]
+  );
+  await pool.query(
+    `DELETE FROM job_feedback WHERE job_id IN (
+       SELECT id FROM jobs WHERE scraped_at < NOW() - ($1 || ' days')::INTERVAL
+     )`, [days]
+  );
+  const { rowCount: jobsDel } = await pool.query(
+    `DELETE FROM jobs WHERE scraped_at < NOW() - ($1 || ' days')::INTERVAL`, [days]
+  );
+  return { jobs: jobsDel, enrichments: enrichDel };
+}
+
 export async function getJobById(id) {
   const { rows } = await pool.query(
     `SELECT j.*, e.overall_score, e.llm_reasoning, e.llm_result, e.filter_result

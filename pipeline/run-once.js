@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { runScrapeAll } from './scrape.js';
 import { enrichPending } from './enrich.js';
-import { getTopJobs } from '../db/client.js';
+import { getTopJobs, purgeOldJobs } from '../db/client.js';
 import { notifyNewJobs } from '../notifications/telegram.js';
 import { notifyError, sendDailyDigest } from '../notifications/system.js';
 import { processPendingCallbacks } from '../telegram/callbacks.js';
@@ -58,6 +58,14 @@ async function main() {
     } catch (err) {
       console.error('[pipeline] digest error:', err.message);
     }
+  }
+
+  // 5. Purge jobs older than 3 days
+  try {
+    const purged = await purgeOldJobs(3);
+    if (purged.jobs > 0) console.log(`[pipeline] Purged ${purged.jobs} old jobs, ${purged.enrichments} enrichments`);
+  } catch (err) {
+    console.error('[pipeline] purge error:', err.message);
   }
 
   console.log('[pipeline] === Done ===');
